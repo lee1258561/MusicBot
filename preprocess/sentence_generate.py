@@ -99,24 +99,7 @@ def fill_template(data_artist,data_sent,genre_list,args_output):
             fill_slot(X,POS,Intent,intent,template)
 
 
-    dump_to_file(X,POS,Intent,args_output)
-
-def dump_to_file(X,POS,Intent,args_output):
-    f_X = open(args_output+'X','w')
-    f_POS = open(args_output+'POS','w')
-    f_Intent = open(args_output+'Intent','w')
-
-    for n in range(len(X)):
-        for i in X[n]:
-            f_X.write(u'{} '.format(i).encode('utf-8'))
-        f_X.write(u'\n'.encode('utf-8'))
-        for i in POS[n]:
-            f_POS.write(u'{} '.format(i).encode('utf-8'))
-        f_POS.write(u'\n'.encode('utf-8'))
-        f_Intent.write(u'{}\n'.format(Intent[n]).encode('utf-8'))
-    f_X.close()
-    f_POS.close()
-    f_Intent.close()
+    io_utils.dump_to_file(X,POS,Intent,args_output)
 
 
 def sent_gen(args):
