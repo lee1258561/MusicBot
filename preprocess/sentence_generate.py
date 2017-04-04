@@ -4,6 +4,7 @@ import sys
 import json
 import argparse
 import numpy as np
+import io_utils
 
 
 '''
@@ -22,36 +23,25 @@ def opt_parse():
     args = parser.parse_args()
     return args
 
+
+def slot_sample(s=None,a=None,t=None,g=None,l=None):
+    slot = {'[s]':s,'[a]':a,'[t]':t,'[g]':g,'[l]':l}
+    return slot
+
+
 def fill_slot(X,POS,Intent,intent,template,s=None,a=None,t=None,g=None,l=None):
-    pos = '0'*len(template)
-    new_temp = template
-    offset_s = new_temp.find('[s]')
-    if offset_s != -1 and s != None:
-        pos = pos[:offset_s]+'s'*len(s)+pos[offset_s+3:]
-        new_temp = new_temp.replace('[s]',s)
+    slot_map = slot_sample(s,a,t,g,l)
+    new_temp = io_utils.naive_seg(template)
+    pos = [0 for i in range(len(new_temp))]
 
-    offset_a = new_temp.find('[a]')
-    if offset_a != -1 and a != None:
-        pos = pos[:offset_a]+'a'*len(a)+pos[offset_a+3:]
-        new_temp = new_temp.replace('[a]',a)
+    for key in slot_map:
+        offset = 0
+        if key in new_temp and slot_map[key] != None:
+            offset = new_temp.index(key)
+            slot_content = io_utils.naive_seg(slot_map[key])
+            pos = pos[:offset] + [key[1]]*len(slot_content) + pos[offset+1:]
+            new_temp = new_temp[:offset] + slot_content + new_temp[offset+1:]
 
-    offset_t = new_temp.find('[t]')
-    if offset_t != -1 and t != None:
-        pos = pos[:offset_t]+'t'*len(t)+pos[offset_t+3:]
-        new_temp = new_temp.replace('[t]',t)
-
-    offset_g = new_temp.find('[g]')
-    if offset_g != -1 and g!= None:
-        pos = pos[:offset_g]+'g'*len(g)+pos[offset_g+3:]
-        new_temp = new_temp.replace('[g]',g)
-
-    offset_l = new_temp.find('[l]')
-    if offset_l != -1 and l!=None:
-        pos = pos[:offset_l]+'l'*len(l)+pos[offset_l+3:]
-        new_temp = new_temp.replace('[l]',l)
-
-    #print new_temp
-    #print pos
 
     X.append(new_temp)
     POS.append(pos)
@@ -67,9 +57,9 @@ def fill_template(data_artist,data_sent,genre_list,args_output):
     ### init
     intent_list = data_sent[data_sent.columns[0]].unique()
     print intent_list
-    X = []
-    POS = []
-    Intent = []
+    X = [] # [[],[],...]
+    POS = [] # [[],[],...]
+    Intent = [] # []
     
     data_sent = data_sent.values
     for n,sent in enumerate(data_sent):
@@ -117,9 +107,16 @@ def dump_to_file(X,POS,Intent,args_output):
     f_Intent = open(args_output+'Intent','w')
 
     for n in range(len(X)):
-        f_X.write(u'{}\n'.format(X[n]).encode('utf-8'))
-        f_POS.write(u'{}\n'.format(POS[n]).encode('utf-8'))
+        for i in X[n]:
+            f_X.write(u'{} '.format(i).encode('utf-8'))
+        f_X.write(u'\n'.encode('utf-8'))
+        for i in POS[n]:
+            f_POS.write(u'{} '.format(i).encode('utf-8'))
+        f_POS.write(u'\n'.encode('utf-8'))
         f_Intent.write(u'{}\n'.format(Intent[n]).encode('utf-8'))
+    f_X.close()
+    f_POS.close()
+    f_Intent.close()
 
 
 def sent_gen(args):
