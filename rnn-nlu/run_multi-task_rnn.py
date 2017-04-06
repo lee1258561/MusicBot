@@ -23,7 +23,7 @@ import multi_task_model
 
 import subprocess
 import stat
-
+import databaseAPI
 
 #tf.app.flags.DEFINE_float("learning_rate", 0.1, "Learning rate.")
 #tf.app.flags.DEFINE_float("learning_rate_decay_factor", 0.9,
@@ -428,7 +428,12 @@ def test():
     sys.stdout.flush()
     sentence = sys.stdin.readline()
     while sentence:
-      print(feed_sentence(sentence, new_vocab))
+      intent,pos = feed_sentence(sentence, new_vocab)
+      print(intent,pos)
+      slot = databaseAPI.build_slot(data_utils.naive_seg(sentence), pos)
+      print(slot)
+      db = databaseAPI.Database()
+      db.given(slot)
       sys.stdout.write('>')
       sys.stdout.flush()
       sentence = sys.stdin.readline()
