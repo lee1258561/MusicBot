@@ -1,0 +1,85 @@
+import spotipy
+import argparse
+import pprint
+
+from operator import itemgetter
+
+class Database():
+    def __init__(self):
+        self.__sp = spotipy.Spotify()
+        self.__sp.trace = False
+
+    def get_artist(self, artist_name):
+        results = self.__sp.search(q='artist:' + artist_name, type='artist')
+        items = results['artists']['items']
+        return items
+
+    def get_album(self, album_name):
+        results = self.__sp.search(q='album:' + album_name, type='album')
+        items = results['albums']['items']
+        return items
+    def get_track(self, track_name):
+        results = self.__sp.search(q='track:' + track_name, type='track')
+        items = results['tracks']['items']
+        return items
+
+    def given(self, slots):
+        query = ""
+        filters = ['artist', 'album', 'track']
+        for f in filters:
+            if f in slots.keys():
+                query += '%s:%s ' % (f, slots[f])
+
+        results = self.__sp.search(q=query, type='track')
+        items = results['tracks']['items']
+        
+        print('幫你播 ' + sorted(items, key=itemgetter('popularity'), reverse=True)[0]['name'])
+        return items
+
+    def show_album_tracks(self, album):
+        tracks = []
+        results = self.__sp.album_tracks(album['id'])
+        tracks.extend(results['items'])
+        while results['next']:
+            results = sp.next(results)
+            tracks.extend(results['items'])
+        
+        return tracks
+
+    def get_artist_albums(self, artist):
+        albums = []
+        results = self.__sp.artist_albums(artist['id'], album_type='album')
+        albums.extend(results['items'])
+        while results['next']:
+            results = sp.next(results)
+            albums.extend(results['items'])
+        print('Total albums:', len(albums))
+        
+        return albums
+
+    def show_artist(self, artist):
+        print('====', artist['name'], '====')
+        print('Popularity: ', artist['popularity'])
+        if len(artist['genres']) > 0:
+            print('Genres: ', ','.join(artist['genres']))
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--artist', type=str, help="Artist to query.")
+    parser.add_argument('--album', type=str, help="Album to query.")
+    parser.add_argument('--track', type=str, help="Track to query.")
+    args = parser.parse_args()
+
+    db = Database()
+    slots = {
+        'artist': args.artist,
+        #'album': args.album,
+        #'track': args.track
+    }
+
+    db.given(slots)
+    
+
+
+
+
