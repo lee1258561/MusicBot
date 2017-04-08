@@ -19,3 +19,6 @@ Go to rnn-nlu directory, then run:
 
 or use -v option to check out all the spotipy API messages:  
 `$ python2 actionController.py -v`
+
+**目前只有train中文語句**。training的時候只有使用中文的模板並以華語歌手的資料填空來生data，所以目前基本上只有中文的語句會比較好。
+
