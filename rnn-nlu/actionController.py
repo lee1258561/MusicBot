@@ -1,5 +1,5 @@
+# -*- coding: utf-8 -*-
 from __future__ import print_function
-
 
 import argparse
 import sys
@@ -48,7 +48,7 @@ def main():
     AC = Controller(args.data , args.model, verbose=args.verbose)
 
     while True:
-        print('(SpotiBot): What do you wanna do?')
+        print('(SpotiBot): 想聽什麼歌?')
         print(':',end='')
         sentence = sys.stdin.readline()
         if AC.input(sentence):
