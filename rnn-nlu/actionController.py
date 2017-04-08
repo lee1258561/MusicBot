@@ -36,7 +36,7 @@ class Controller():
     def action(self):
         # TODO add rule-based if else
         slot = databaseAPI.build_slot(self.in_sent_seg, self.in_pos)
-        if self.in_intent == 'given' and len(slot) > 0:
+        if 'given' in self.in_intent and len(slot) > 0:
             self.DB.given(slot)
         else:
             print ('Not supported yet...')
