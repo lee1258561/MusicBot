@@ -22,3 +22,10 @@ or use -v option to check out all the spotipy API messages:
 
 **目前只有train中文語句**。training的時候只有使用中文的模板並以華語歌手的資料填空來生data，所以目前基本上只有中文的語句會比較好。
 
+#### examples
+我想聽林正的歌  
+我想聽林俊傑的修煉愛情
+快播幾首依然范特西中的歌
+我只聽maroon 5的歌
+播一下垃圾車
+可以幫我找林正的我不是他嗎？
