@@ -6,9 +6,9 @@ import pprint
 from operator import itemgetter
 
 class Database():
-    def __init__(self):
+    def __init__(self,verbose=False):
         self.__sp = spotipy.Spotify()
-        self.__sp.trace = True #NOTE dubug
+        self.__sp.trace = verbose #NOTE dubug
 
     def get_artist(self, artist_name):
         results = self.__sp.search(q='artist:' + artist_name, type='artist')

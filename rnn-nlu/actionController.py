@@ -11,12 +11,13 @@ def optParser():
     parser = argparse.ArgumentParser(description='Vanilla action controller')
     parser.add_argument('--data', default='../data/nlu/',type=str, help='data dir')
     parser.add_argument('--model',default='model_tmp',type=str,help='model dir')
+    parser.add_argument('-v',dest='verbose',default=False,action='store_true',help='verbose')
     args = parser.parse_args()
     return args
 
 class Controller():
-    def __init__(self,data_dir,train_dir):
-        self.DB = databaseAPI.Database()
+    def __init__(self,data_dir,train_dir,verbose=False):
+        self.DB = databaseAPI.Database(verbose=verbose)
         import test_multi_task_rnn
         self.NLUModel = test_multi_task_rnn.test_model(data_dir,train_dir)
         self.in_sent = ''
@@ -44,7 +45,7 @@ class Controller():
 
 def main():
     args = optParser()
-    AC = Controller(args.data , args.model)
+    AC = Controller(args.data , args.model, verbose=args.verbose)
 
     while True:
         print('(SpotiBot): What do you wanna do?')
