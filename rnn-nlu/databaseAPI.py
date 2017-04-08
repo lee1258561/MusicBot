@@ -8,7 +8,7 @@ from operator import itemgetter
 class Database():
     def __init__(self):
         self.__sp = spotipy.Spotify()
-        self.__sp.trace = False
+        self.__sp.trace = True #NOTE dubug
 
     def get_artist(self, artist_name):
         results = self.__sp.search(q='artist:' + artist_name, type='artist')
@@ -34,9 +34,10 @@ class Database():
         results = self.__sp.search(q=query, type='track')
         items = results['tracks']['items']
         if len(items) > 0:
-            print(u'幫你播 ' + sorted(items, key=itemgetter('popularity'), reverse=True)[0]['name'])
+            items = sorted(items,key=itemgetter('popularity'),reverse=True)
+            print(u'幫你播 ' + items[0]['artists'][0]['name'] + u' 的 ' + items[0]['name'])
         else:
-            print(u'404 Not Found...')
+            print(u'Sorry Not Found...')
         return items
 
     def show_album_tracks(self, album):
