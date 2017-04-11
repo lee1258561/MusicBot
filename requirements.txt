@@ -10,3 +10,4 @@ requests==2.13.0
 six==1.10.0
 spotipy==2.4.4
 tensorflow-gpu==1.0.1
+fbchat==0.8.2
