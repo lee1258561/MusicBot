@@ -23,7 +23,7 @@ import multi_task_model
 
 import subprocess
 import stat
-
+import databaseAPI
 
 #tf.app.flags.DEFINE_float("learning_rate", 0.1, "Learning rate.")
 #tf.app.flags.DEFINE_float("learning_rate_decay_factor", 0.9,
@@ -305,7 +305,7 @@ def train():
         sys.stdout.flush()
 
 
-        '''
+        
         def run_valid_test(data_set, mode): # mode: Eval, Test
         # Run evals on development/test set and print the accuracy.
             word_list = list()
@@ -373,7 +373,7 @@ def train():
           best_test_score = test_tagging_result['f1']
           # save the best output file
           subprocess.call(['mv', current_taging_test_out_file, current_taging_test_out_file + '.best_f1_%.2f' % best_test_score])
-        '''
+        
 def test():
   print ('Applying Parameters:')
   for k,v in FLAGS.__dict__['__flags'].items():
@@ -388,12 +388,19 @@ def test():
   vocab, rev_vocab = data_utils.initialize_vocabulary(vocab_path)
   tag_vocab, rev_tag_vocab = data_utils.initialize_vocabulary(tag_vocab_path)
   label_vocab, rev_label_vocab = data_utils.initialize_vocabulary(label_vocab_path)
+
+  # vocab to unicode
+  new_vocab = {}
+  for w in vocab :
+      new_vocab[w.decode('utf-8')] = vocab[w]
   with tf.Session() as sess:
     # Create model.
     model, model_test = create_model(sess, len(vocab), len(tag_vocab), len(label_vocab))
     def feed_sentence(sentence, vocab):
       data_set = [[]]
       token_ids = data_utils.prepare_one_data(sentence, vocab)
+      print(token_ids)
+      
       slot_ids = [0 for i in range(len(token_ids))]
       data_set[0].append([token_ids, slot_ids, [0]])
       encoder_inputs, tags, tag_weights, sequence_length, labels = model_test.get_one(
@@ -415,12 +422,18 @@ def test():
       classification_word = [rev_label_vocab[c] for c in classification]
       tagging_word = [rev_tag_vocab[t] for t in tagging_logit[:sequence_length[0]]]
       return classification_word, tagging_word
+      
 
     sys.stdout.write('>')
     sys.stdout.flush()
     sentence = sys.stdin.readline()
     while sentence:
-      print(feed_sentence(sentence, vocab))
+      intent,pos = feed_sentence(sentence, new_vocab)
+      print(intent,pos)
+      slot = databaseAPI.build_slot(data_utils.naive_seg(sentence), pos)
+      print(slot)
+      db = databaseAPI.Database()
+      db.given(slot)
       sys.stdout.write('>')
       sys.stdout.flush()
       sentence = sys.stdin.readline()

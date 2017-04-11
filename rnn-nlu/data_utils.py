@@ -55,6 +55,10 @@ def naive_seg(sentence):
         你的English真的是very good的呢
         ->[你,的,English,真,的,是,very,good,的,呢]
   '''
+  try:
+      sentence = sentence.decode('utf-8')
+  except UnicodeError:
+      pass
   sentence = sentence.split()
   sentence_seg = []
   for w in sentence:
