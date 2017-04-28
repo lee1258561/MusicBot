@@ -18,13 +18,12 @@ import numpy as np
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
-import data_utils
-import multi_task_model
+from . import data_utils
+from . import multi_task_model
 
 import subprocess
 import stat
-import databaseAPI
-import actionController
+#from ..ontology import databaseAPI
 
 #tf.app.flags.DEFINE_float("learning_rate", 0.1, "Learning rate.")
 #tf.app.flags.DEFINE_float("learning_rate_decay_factor", 0.9,
