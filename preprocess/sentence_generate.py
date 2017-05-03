@@ -4,6 +4,9 @@ import sys
 import json
 import argparse
 import numpy as np
+from os.path import splitext, basename
+from random import randrange, shuffle
+
 import io_utils
 
 
@@ -20,6 +23,8 @@ def opt_parse():
     parser.add_argument('data',help='artist-album-track json data')
     parser.add_argument('genre',help='genres')
     parser.add_argument('-output',default='Train_',help='output filename prefix')
+    parser.add_argument('--nb_per_template',default=100,type=int,\
+            help='use 1 template sentences generate n times')
     args = parser.parse_args()
     return args
 
@@ -49,57 +54,44 @@ def fill_slot(X,POS,Intent,intent,template,s=None,a=None,t=None,g=None,l=None):
     return
 
 
-def fill_template(data_artist,data_sent,genre_list,args_output):
+def fill_template(data_artist,data_sent,genres,args_output, intent,nb_per_template=100):
     '''
         fill the given [...] slot of template sentences
         then store to file with prefix of args_output
     '''
     ### init
-    intent_list = data_sent[data_sent.columns[0]].unique()
-    print intent_list
+    data_sent = data_sent[data_sent.columns[0]].unique()
     X = [] # [[],[],...]
     POS = [] # [[],[],...]
     Intent = [] # []
     
-    data_sent = data_sent.values
+    intents = ['search', 'recommend','info','neutral']
+    artists = [s for s in data_artist]
+    tracks = []
+    for s in data_artist:
+        for a in data_artist[s]:
+            for t in data_artist[s][a]:
+                tracks.append(t)
+
+
     for n,sent in enumerate(data_sent):
-        intent = sent[0].decode('utf-8')
-        template = sent[1].decode('utf-8')
+        #intent = sent[0].decode('utf-8')
+        template = sent.decode('utf-8')
         #print n,intent,template
-        
-        if intent == 'given':
-            if '[d]' in template: # skip date info
-                continue
-            if '[t]' in template:
-                for s in data_artist:
-                    for a in data_artist[s]:
-                        for t in data_artist[s][a]:
-                            fill_slot(X,POS,Intent,intent,template,s,a,t)
-            elif '[a]' in template:
-                for s in data_artist:
-                    for a in data_artist[s]:
-                        if '[g]' in template:
-                            for g in genre_list:
-                                fill_slot(X,POS,Intent,intent,template,s,a,t,g)
-                        else:
-                            fill_slot(X,POS,Intent,intent,template,s,a,t)
-            elif '[s]' in template:
-                for s in data_artist:
-                    if '[g]' in template:
-                        for g in genre_list:
-                            fill_slot(X,POS,Intent,intent,template,s,a,t,g)
-                    else:
-                        fill_slot(X,POS,Intent,intent,template,s,a,t)
-
-        elif intent =='recommend':
-            for g in genre_list:
-                fill_slot(X,POS,Intent,intent,template,g=g)
-                print g,intent
-        elif 'List' not in intent and 'list' not in intent:
-            fill_slot(X,POS,Intent,intent,template)
+        if intent in intents:
+            for _ in range(nb_per_template):
+                t = tracks[randrange(0,len(tracks))] if '[t]' in template else None
+                s = artists[randrange(0,len(artists))] if '[s]' in template else None
+                g = genres[randrange(0,len(genres))] if '[g]' in template else None
+                fill_slot(X,POS,Intent,intent, template,t=t,s=s,g=g)
 
 
-    io_utils.dump_to_file(X,POS,Intent,args_output)
+
+        #elif 'List' not in intent and 'list' not in intent:
+        #    fill_slot(X,POS,Intent,intent,template)
+
+
+    io_utils.dump_to_file(X,POS,Intent,args_output, mode='a')
 
 
 def sent_gen(args):
@@ -108,14 +100,18 @@ def sent_gen(args):
     with open(args.genre,'r') as f:
         genre_list=json.load(f)
     data_sent = pd.read_csv(args.template)
-
-    data_sent = data_sent[data_sent.columns[1:]] # remove timestamp column
+    intent = splitext(basename(args.template))[0]
+    print intent
+    
+    #data_sent = data_sent[data_sent.columns[0]] # remove timestamp column
     #print data_sent
 
-    # select Intent: Given [singer | album | date | track | genre ] find songs
-    # given_row =  data_sent[data_sent.columns[0]] == 'Given'
-    fill_template(data_artist,data_sent,genre_list,args.output)
+    ### select Intent: Given [singer | album | date | track | genre ] find songs
+    ### given_row =  data_sent[data_sent.columns[0]] == 'Given'
+    fill_template(data_artist,data_sent,genre_list,args.output, intent,nb_per_template=args.nb_per_template)
 
+    ### shuffle output file
+    io_utils.shuffle_data(args.output)
 
 
 if __name__ == '__main__':

@@ -10,7 +10,8 @@ import io_utils
 
 def opt_parse():
     parser = argparse.ArgumentParser(description=\
-            'Split dataset into train,valid,test')
+            'Split dataset into train,valid,test',\
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('data_dir',help='directory of original Train_')
     parser.add_argument('-v',default=0.05,type=float,help='valid proportion')
     parser.add_argument('-t',default=0.05,type=float,help='test proportion')
