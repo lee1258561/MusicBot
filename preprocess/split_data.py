@@ -20,9 +20,9 @@ def opt_parse():
     return args
 
 def split_data(args):
-    X = io_utils.load_X(args.data_dir+'Train_X')
-    POS = io_utils.load_POS(args.data_dir+'Train_POS')
-    Intent = io_utils.load_Intent(args.data_dir+'Train_Intent')
+    X = io_utils.load_X(args.data_dir+'Train.seq.in')
+    POS = io_utils.load_POS(args.data_dir+'Train.seq.out')
+    Intent = io_utils.load_Intent(args.data_dir+'Train.label')
     data_len = len(X)
 
     ### shuffle data
@@ -40,7 +40,7 @@ def split_data(args):
             os.makedirs(directory)
     amount = int(data_len*(1. - args.v - args.t))
     io_utils.dump_to_file(X_shuff[:amount],POS_shuff[:amount],Intent_shuff[:amount],\
-            directory+'/train_' )
+            directory+'/train' )
 
     ### dump valid
     directory = os.path.join(args.output,'valid')
@@ -48,14 +48,14 @@ def split_data(args):
             os.makedirs(directory)
     amount_v = int(data_len*(1. - args.t))
     io_utils.dump_to_file(X_shuff[amount:amount_v],POS_shuff[amount:amount_v],\
-            Intent_shuff[amount:amount_v],directory+'/valid_' )
+            Intent_shuff[amount:amount_v],directory+'/valid' )
 
     ### dump test
     directory = os.path.join(args.output,'test')
     if not os.path.exists(directory):
             os.makedirs(directory)
     io_utils.dump_to_file(X_shuff[amount_v:],POS_shuff[amount_v:],Intent_shuff[amount_v:]\
-            ,directory+'/test_' )
+            ,directory+'/test' )
 
 if __name__ == '__main__':
     args = opt_parse()

@@ -59,9 +59,9 @@ def load_Intent(Intent_path):
     return Intent
 
 def dump_to_file(X,POS,Intent,prefix, mode='w'):
-    f_X = open(prefix+'X',mode)
-    f_POS = open(prefix+'POS',mode)
-    f_Intent = open(prefix+'Intent',mode)
+    f_X = open(prefix+'.seq.in',mode)
+    f_POS = open(prefix+'.seq.out',mode)
+    f_Intent = open(prefix+'.label',mode)
 
     for n in range(len(X)):
         for i in X[n]:
@@ -74,42 +74,6 @@ def dump_to_file(X,POS,Intent,prefix, mode='w'):
     f_X.close()
     f_POS.close()
     f_Intent.close()
-
-def shuffle_data(prefix):
-    with open(prefix+'X','r')  as f:
-        X = f.read().splitlines()
-    with open(prefix+'POS','r') as f:
-        POS = f.read().splitlines()
-    with open(prefix+'Intent','r') as f:
-        Intent = f.read().splitlines()
-    
-    X = [a.decode('utf-8') for a in X]
-    X_shuf = []
-    POS_shuf = []
-    Intent_shuf = []
-    index_shuf = range(len(X))
-    shuffle(index_shuf)
-    for i in index_shuf:
-        X_shuf.append(X[i])
-        POS_shuf.append(POS[i])
-        Intent_shuf.append(Intent[i])
-
-    f_X = open(prefix+'X', 'w')
-    f_POS = open(prefix+'POS', 'w')
-    f_Intent = open(prefix+'Intent', 'w')
-
-    for n in range(len(X_shuf)):
-        for i in X_shuf[n]:
-            f_X.write(u'{}'.format(i).encode('utf-8'))
-        f_X.write(u'\n'.encode('utf-8'))
-        for i in POS_shuf[n]:
-            f_POS.write(u'{}'.format(i).encode('utf-8'))
-        f_POS.write(u'\n'.encode('utf-8'))
-        f_Intent.write(u'{}\n'.format(Intent_shuf[n]).encode('utf-8'))
-    f_X.close()
-    f_POS.close()
-    f_Intent.close()
-
 
 
 if __name__ == '__main__':

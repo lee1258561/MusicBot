@@ -57,6 +57,7 @@ tf.app.flags.DEFINE_boolean("bidirectional_rnn", True,
                             "Use birectional RNN")
 tf.app.flags.DEFINE_string("task", "joint", "Options: joint; intent; tagging")
 tf.app.flags.DEFINE_string("mode", "train", "Options: train; test(default: train)")
+tf.app.flags.DEFINE_boolean("test_while_train", False,"Test while train(not recommended, fucking slow)")
 FLAGS = tf.app.flags.FLAGS
 
 if FLAGS.max_sequence_length == 0:
@@ -304,75 +305,74 @@ def train():
             print("validation perplexity %.2f" % eval_ppx)
         sys.stdout.flush()
 
+        if FLAGS.test_while_train:
+            def run_valid_test(data_set, mode): # mode: Eval, Test
+            # Run evals on development/test set and print the accuracy.
+                word_list = list()
+                ref_tag_list = list()
+                hyp_tag_list = list()
+                ref_label_list = list()
+                hyp_label_list = list()
+                correct_count = 0
+                accuracy = 0.0
+                tagging_eval_result = dict()
+                for bucket_id in xrange(len(_buckets)):
+                  eval_loss = 0.0
+                  count = 0
+                  for i in xrange(len(data_set[bucket_id])):
+                    count += 1
+                    encoder_inputs, tags, tag_weights, sequence_length, labels = model_test.get_one(
+                      data_set, bucket_id, i)
+                    tagging_logits = []
+                    classification_logits = []
+                    if task['joint'] == 1:
+                      _, step_loss, tagging_logits, classification_logits = model_test.joint_step(sess, encoder_inputs, tags, tag_weights, labels,
+                                                 sequence_length, bucket_id, True)
+                    elif task['tagging'] == 1:
+                      _, step_loss, tagging_logits = model_test.tagging_step(sess, encoder_inputs, tags, tag_weights,
+                                                 sequence_length, bucket_id, True)
+                    elif task['intent'] == 1:
+                      _, step_loss, classification_logits = model_test.classification_step(sess, encoder_inputs, labels,
+                                                 sequence_length, bucket_id, True)
+                    eval_loss += step_loss / len(data_set[bucket_id])
+                    hyp_label = None
+                    if task['intent'] == 1:
+                      ref_label_list.append(rev_label_vocab[labels[0][0]])
+                      hyp_label = np.argmax(classification_logits[0],0)
+                      hyp_label_list.append(rev_label_vocab[hyp_label])
+                      if labels[0] == hyp_label:
+                        correct_count += 1
+                    if task['tagging'] == 1:
+                      word_list.append([rev_vocab[x[0]] for x in encoder_inputs[:sequence_length[0]]])
+                      ref_tag_list.append([rev_tag_vocab[x[0]] for x in tags[:sequence_length[0]]])
+                      hyp_tag_list.append([rev_tag_vocab[np.argmax(x)] for x in tagging_logits[:sequence_length[0]]])
 
-        
-        def run_valid_test(data_set, mode): # mode: Eval, Test
-        # Run evals on development/test set and print the accuracy.
-            word_list = list()
-            ref_tag_list = list()
-            hyp_tag_list = list()
-            ref_label_list = list()
-            hyp_label_list = list()
-            correct_count = 0
-            accuracy = 0.0
-            tagging_eval_result = dict()
-            for bucket_id in xrange(len(_buckets)):
-              eval_loss = 0.0
-              count = 0
-              for i in xrange(len(data_set[bucket_id])):
-                count += 1
-                encoder_inputs, tags, tag_weights, sequence_length, labels = model_test.get_one(
-                  data_set, bucket_id, i)
-                tagging_logits = []
-                classification_logits = []
-                if task['joint'] == 1:
-                  _, step_loss, tagging_logits, classification_logits = model_test.joint_step(sess, encoder_inputs, tags, tag_weights, labels,
-                                             sequence_length, bucket_id, True)
-                elif task['tagging'] == 1:
-                  _, step_loss, tagging_logits = model_test.tagging_step(sess, encoder_inputs, tags, tag_weights,
-                                             sequence_length, bucket_id, True)
-                elif task['intent'] == 1:
-                  _, step_loss, classification_logits = model_test.classification_step(sess, encoder_inputs, labels,
-                                             sequence_length, bucket_id, True)
-                eval_loss += step_loss / len(data_set[bucket_id])
-                hyp_label = None
+                accuracy = float(correct_count)*100/count
                 if task['intent'] == 1:
-                  ref_label_list.append(rev_label_vocab[labels[0][0]])
-                  hyp_label = np.argmax(classification_logits[0],0)
-                  hyp_label_list.append(rev_label_vocab[hyp_label])
-                  if labels[0] == hyp_label:
-                    correct_count += 1
+                  print("  %s accuracy: %.2f %d/%d" % (mode, accuracy, correct_count, count))
+                  sys.stdout.flush()
                 if task['tagging'] == 1:
-                  word_list.append([rev_vocab[x[0]] for x in encoder_inputs[:sequence_length[0]]])
-                  ref_tag_list.append([rev_tag_vocab[x[0]] for x in tags[:sequence_length[0]]])
-                  hyp_tag_list.append([rev_tag_vocab[np.argmax(x)] for x in tagging_logits[:sequence_length[0]]])
+                  if mode == 'Eval':
+                      taging_out_file = current_taging_valid_out_file
+                  elif mode == 'Test':
+                      taging_out_file = current_taging_test_out_file
+                  tagging_eval_result = conlleval(hyp_tag_list, ref_tag_list, word_list, taging_out_file)
+                  print("  %s f1-score: %.2f" % (mode, tagging_eval_result['f1']))
+                  sys.stdout.flush()
+                return accuracy, tagging_eval_result
 
-            accuracy = float(correct_count)*100/count
-            if task['intent'] == 1:
-              print("  %s accuracy: %.2f %d/%d" % (mode, accuracy, correct_count, count))
-              sys.stdout.flush()
-            if task['tagging'] == 1:
-              if mode == 'Eval':
-                  taging_out_file = current_taging_valid_out_file
-              elif mode == 'Test':
-                  taging_out_file = current_taging_test_out_file
-              tagging_eval_result = conlleval(hyp_tag_list, ref_tag_list, word_list, taging_out_file)
-              print("  %s f1-score: %.2f" % (mode, tagging_eval_result['f1']))
-              sys.stdout.flush()
-            return accuracy, tagging_eval_result
-
-        # valid
-        valid_accuracy, valid_tagging_result = run_valid_test(dev_set, 'Eval')
-        if task['tagging'] == 1 and valid_tagging_result['f1'] > best_valid_score:
-          best_valid_score = valid_tagging_result['f1']
-          # save the best output file
-          subprocess.call(['mv', current_taging_valid_out_file, current_taging_valid_out_file + '.best_f1_%.2f' % best_valid_score])
-        # test, run test after each validation for development purpose.
-        test_accuracy, test_tagging_result = run_valid_test(test_set, 'Test')
-        if task['tagging'] == 1 and test_tagging_result['f1'] > best_test_score:
-          best_test_score = test_tagging_result['f1']
-          # save the best output file
-          subprocess.call(['mv', current_taging_test_out_file, current_taging_test_out_file + '.best_f1_%.2f' % best_test_score])
+            # valid
+            valid_accuracy, valid_tagging_result = run_valid_test(dev_set, 'Eval')
+            if task['tagging'] == 1 and valid_tagging_result['f1'] > best_valid_score:
+              best_valid_score = valid_tagging_result['f1']
+              # save the best output file
+              subprocess.call(['mv', current_taging_valid_out_file, current_taging_valid_out_file + '.best_f1_%.2f' % best_valid_score])
+            # test, run test after each validation for development purpose.
+            test_accuracy, test_tagging_result = run_valid_test(test_set, 'Test')
+            if task['tagging'] == 1 and test_tagging_result['f1'] > best_test_score:
+              best_test_score = test_tagging_result['f1']
+              # save the best output file
+              subprocess.call(['mv', current_taging_test_out_file, current_taging_test_out_file + '.best_f1_%.2f' % best_test_score])
         
 def test():
   print ('Applying Parameters:')

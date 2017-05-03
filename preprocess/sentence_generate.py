@@ -22,7 +22,7 @@ def opt_parse():
     parser.add_argument('template',help='sentence template')
     parser.add_argument('data',help='artist-album-track json data')
     parser.add_argument('genre',help='genres')
-    parser.add_argument('-output',default='Train_',help='output filename prefix')
+    parser.add_argument('-output',default='Train',help='output filename prefix')
     parser.add_argument('--nb_per_template',default=100,type=int,\
             help='use 1 template sentences generate n times')
     args = parser.parse_args()
@@ -109,10 +109,6 @@ def sent_gen(args):
     ### select Intent: Given [singer | album | date | track | genre ] find songs
     ### given_row =  data_sent[data_sent.columns[0]] == 'Given'
     fill_template(data_artist,data_sent,genre_list,args.output, intent,nb_per_template=args.nb_per_template)
-
-    ### shuffle output file
-    io_utils.shuffle_data(args.output)
-
 
 if __name__ == '__main__':
     args = opt_parse()
