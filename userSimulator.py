@@ -30,7 +30,7 @@ def opt_parse():
 class Simulator():
     def __init__(self, template_dir, data_path, genre_path, intents=intents):
         self.data = self._load_data(template_dir, data_path, genre_path)
-        self.intents = intents
+        self.intents = intents[:3]
         self.dialogue_end = True
         self.cur_intent = ''
         self.cur_slot = {}
@@ -81,18 +81,18 @@ class Simulator():
                 if not self.cur_slots_all >= slots_asked: # if DTW ask slots not included in current intent
                     sent = self._neg_response(None)
                 else:
+                    slots_asked.clear() # clear all the elements
                     for key in dst_msg['slot']: # check if each slot DTW returned is correct
-                        ### if any of the slot is incorrect, response the sentence with the correct slot
+                        ### add incorrect slots to slots_asked, then generate neg_response
                         if self.cur_slot[key] != dst_msg['slot'][key]:
-                            sent = self._neg_response(set([key]))
-                            break
-                        else: # return positive response if all DTW slots are correct
-                            sent = self._pos_response()
+                            slots_asked.add(key)
+                    if len(slots_asked) > 0:
+                        sent = self._neg_response(slot=slots_asked,strict=False)
             if 'intent' in dst_msg:
                 if self.cur_intent != dst_msg['intent']: # check if the DTW intent correct
-                    sent = self._neg_response(intent=self.cur_intent)
-                else:
-                    sent = self._pos_response()
+                    sent = self._neg_response()
+            if len(sent) == 0:
+                sent = self._pos_response()
 
         elif dst_msg['action'] == 'question':
             if 'slot' in dst_msg:
@@ -114,7 +114,9 @@ class Simulator():
 
         return sent
 
-    def sentence_generate(self, slots_asked=set([])):
+    def sentence_generate(self, slots_asked=set([]), strict=True):
+        '''strict: use the template contain all the slots_asked
+        '''
         #intent_asked = intent_asked if len(intent_asked) > 0 else self.cur_intent
         shuffle(self.cur_templates)
         slots_all = set(slots)
@@ -127,10 +129,16 @@ class Simulator():
                 sent = self._fill_slot(t)
                 break
             ### else if the template contains the slot asked and doesn't contain any other slots
-            elif all(slot_token_map[s] in t for s in slots_asked) and\
-                    all(slot_token_map[s] not in t for s in slots_all - slots_asked):
-                sent = self._fill_slot(t)
-                break
+            if strict:
+                if all(slot_token_map[s] in t for s in slots_asked) and\
+                        all(slot_token_map[s] not in t for s in slots_all - slots_asked):
+                    sent = self._fill_slot(t)
+                    break
+            else:
+                if any(slot_token_map[s] in t for s in slots_asked) and\
+                        all(slot_token_map[s] not in t for s in slots_all - slots_asked):
+                    sent = self._fill_slot(t)
+                    break
         return sent
 
     def _fill_slot(self, template):
@@ -151,12 +159,12 @@ class Simulator():
                 format(self.cur_intent, self.cur_slot['artist'],\
                 self.cur_slot['track'], self.cur_slot['genre'])
 
-    def _neg_response(self,intent=None,slot=set([])):
+    def _neg_response(self,slot=set([]),strict=True):
         # TODO
         responses = [u'不是 ',u'錯了 ', u'不對 ']
         sent = ''
         if slot is not None: # if all the slot are valid
-            sent = self.sentence_generate(slots_asked=slot)
+            sent = self.sentence_generate(slots_asked=slot,strict=strict)
         sent = responses[randrange(len(responses))] + sent
         #print 'No! Fuck U!'
         #print sent
@@ -215,9 +223,9 @@ class Simulator():
 
 def main(args):
     simulator = Simulator(args.template_dir, args.data, args.genre, intents)
-    simulator.set_user_goal(intent='search', track=u'分手看看', random=True)
+    simulator.set_user_goal(intent='search',artist=u'郭靖', track=u'分手看看', random=True)
     simulator.print_cur_user_goal()
-    sent = simulator.user_response({'action':'confirm','intent':'search','slot':{'track':u'分手看看'}})
+    sent = simulator.user_response({'action':'confirm','intent':'search','slot':{'track':u'分手看看2','artist':'fuck'}})
     print sent
 
 if __name__ == '__main__':
