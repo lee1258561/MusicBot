@@ -8,8 +8,8 @@ from rnn_nlu import data_utils, test_multi_task_rnn
 
 def optParser():
     parser = argparse.ArgumentParser(description='Vanilla action controller')
-    parser.add_argument('--data', default='./data/nlu/',type=str, help='data dir')
-    parser.add_argument('--model',default='./rnn_nlu/model_tmp',type=str,help='model dir')
+    parser.add_argument('--data', default='./data/nlu_data/',type=str, help='data dir')
+    parser.add_argument('--model',default='./model_tmp',type=str,help='model dir')
     parser.add_argument('-v',dest='verbose',default=False,action='store_true',help='verbose')
     args = parser.parse_args()
     return args
