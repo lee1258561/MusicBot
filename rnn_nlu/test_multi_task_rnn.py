@@ -23,7 +23,7 @@ from . import multi_task_model
 
 import subprocess
 import stat
-#from ..ontology import databaseAPI
+from ontology import databaseAPI
 
 #tf.app.flags.DEFINE_float("learning_rate", 0.1, "Learning rate.")
 #tf.app.flags.DEFINE_float("learning_rate_decay_factor", 0.9,
@@ -202,7 +202,7 @@ def create_model(session, source_vocab_size, target_vocab_size, label_vocab_size
     session.run(tf.global_variables_initializer())
   return model_train, model_test
 
- 
+
 class test_model():
   def __init__(self,data_dir,train_dir,max_sequence_length=130,task='joint'):
     FLAGS.data_dir = data_dir
@@ -210,7 +210,7 @@ class test_model():
     FLAGS.max_sequence_length = max_sequence_length
     FLAGS.task = task
     FLAGS.mode = 'test'
-    
+
     print ('Applying Parameters:')
     for k,v in FLAGS.__dict__['__flags'].items():
       print ('%s: %s' % (k, str(v)))
@@ -227,17 +227,21 @@ class test_model():
 
     # vocab to unicode
     self.vocab = {}
-    for w in vocab :
+    for w in vocab:
         self.vocab[w.decode('utf-8')] = vocab[w]
+    self.rev_vocab = rev_vocab
 
     self.sess =  tf.Session()
     self.model, self.model_test = create_model(self.sess, len(self.vocab), len(self.tag_vocab), len(self.label_vocab))
+
+  def softmax(self, x):
+    return np.exp(x) / np.sum(np.exp(x), axis=0)
 
   def feed_sentence(self,sentence):
     data_set = [[]]
     token_ids = data_utils.prepare_one_data(sentence, self.vocab)
     print(token_ids) # NOTE debug
-    
+
     slot_ids = [0 for i in range(len(token_ids))]
     data_set[0].append([token_ids, slot_ids, [0]])
     encoder_inputs, tags, tag_weights, sequence_length, labels = self.model_test.get_one(
@@ -254,17 +258,61 @@ class test_model():
       _, step_loss, classification_logits = self.model_test.classification_step(
           self.sess, encoder_inputs, labels,
           sequence_length, 0, True)
-    classification = [np.argmax(classification_logit) for classification_logit in classification_logits]
-    tagging_logit = [np.argmax(tagging_logit) for tagging_logit in tagging_logits]
-    classification_word = [self.rev_label_vocab[c] for c in classification]
-    tagging_word = [self.rev_tag_vocab[t] for t in tagging_logit[:sequence_length[0]]]
-    return classification_word, tagging_word
-      
+
+    tagging_probs = [self.softmax(tagging_logit.flatten())
+                     for tagging_logit in tagging_logits[:sequence_length[0]]]
+    tagging = [np.argmax(tagging_prob) for tagging_prob in tagging_probs]
+    classification_probs = self.softmax(classification_logits[0])
+    classification_dict = {}
+    for i, c in enumerate(classification_probs):
+        classification_dict[self.rev_label_vocab[i]] = c
+    tagging_word = [self.rev_tag_vocab[t] for t in tagging]
+    print(tagging_word)
+    tag_tmp = '0'
+    begin = True
+    tag_dict = {}
+    for i, tag in enumerate(tagging_word):
+        if tag == '0' and tag_tmp == '0':
+            continue
+        else:
+            if tag != tag_tmp:
+                if begin:
+                    start_i = i
+                    prob_tmp = tagging_probs[i]
+                    begin = False
+                else:
+                    key = "".join(self.rev_vocab[ids] for ids in token_ids[start_i:i])
+                    geo_avg = prob_tmp ** (1/(i-start_i))
+                    tag_dict[key.decode('utf-8')] = geo_avg / np.sum(geo_avg)
+                    begin = True
+            else:
+                if i == len(tagging_word)-1:
+                    key = "".join(self.rev_vocab[ids] for ids in token_ids[start_i:])
+                    geo_avg = prob_tmp ** (1/(i+1-start_i))
+                    tag_dict[key.decode('utf-8')] = geo_avg / np.sum(geo_avg)
+                    continue
+                prob_tmp *= tagging_probs[i]
+        tag_tmp = tag
+    return {'intent': classification_dict, 'slot': tag_dict}
+
 def main(_):
-  if FLAGS.mode == "train":
-    train()
-  else:
-    test()
+  test = test_model(FLAGS.data_dir, FLAGS.train_dir)
+  sys.stdout.write('>')
+  sys.stdout.flush()
+  sentence = sys.stdin.readline()
+  while sentence:
+    prob_dict = test.feed_sentence(sentence)
+    print(prob_dict)
+    '''
+    slot = databaseAPI.build_slot(data_utils.naive_seg(sentence), pos)
+    print(slot)
+    db = databaseAPI.Database()
+    db.given(slot)
+    '''
+    sys.stdout.write('>')
+    sys.stdout.flush()
+    sentence = sys.stdin.readline()
+
 
 if __name__ == "__main__":
   tf.app.run()
