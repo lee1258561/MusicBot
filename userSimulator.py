@@ -29,25 +29,33 @@ def opt_parse():
 
 class Simulator():
     def __init__(self, template_dir, data_path, genre_path, intents=intents):
-        data = self._load_data(template_dir, data_path, genre_path)
-
+        self.data = self._load_data(template_dir, data_path, genre_path)
         self.intents = intents
-        self.artists = data[0]
-        self.tracks = data[1]
-        self.genres = data[2]
-        self.intent_template_map = data[3]
         self.dialogue_end = True
         self.cur_intent = ''
         self.cur_slot = {}
+        self.cur_slots_all = set()
 
-    def set_user_goal(self, intent=None, artist=None, track=None, genre=None):
-        ''' set the current user goal. if not given intent, artist, track or genre,
-            it would randomly set
+    def set_user_goal(self, intent=None, artist=None, track=None, genre=None, random=False):
+        ''' set the current user goal. manually init each slot or random init
         '''
-        self.cur_intent = intent if intent != None else self._rand(self.intents)
-        self.cur_slot['artist'] = artist if artist != None else self._rand(self.artists)
-        self.cur_slot['track'] = track if track != None else self._rand(self.tracks)
-        self.cur_slot['genre'] = genre if genre != None else self._rand(self.genres)
+        self.cur_intent = intent
+        self.cur_slot['artist'] = artist
+        self.cur_slot['track'] = track
+        self.cur_slot['genre'] = None
+        if self.cur_intent == 'recomment': # only recommend would have genre slot
+            self.cur_slot['genre'] = genre
+
+        ### if random init
+        if random:
+            self.cur_intent = self._rand(self.intents)
+            self.cur_slot['track'] = self._rand(self.data['tracks'])
+            self.cur_slot['artist'] =  self.data['track_artist_map'][self.cur_slot['track']]
+            ### TODO: random init genre as well
+
+        ### all the possible slots set based on current intent
+        self.cur_slots_all = set([s for s in self.cur_slot if self.cur_slot[s] is not None]) 
+        self.cur_templates = self.data['intent_template_map'][self.cur_intent] # use the current intent template
 
     def user_response(self, dst_msg=None):
         ''' Given DST message, return user response
@@ -59,6 +67,8 @@ class Simulator():
         '''
         self.dialogue_end = False
         sent=''
+        slots_asked = set([])
+        intent_asked = ''
 
         if dst_msg is None and not self.dialogue_end:
             ### NOTE: should not happen
@@ -67,27 +77,35 @@ class Simulator():
         if dst_msg['action'] == 'confirm':
             if 'slot' in dst_msg:
                 for key in dst_msg['slot']:
-                    if self.cur_slot[key] != dst_msg['slot'][key]:
-                        sent = self._neg_response(slot=set([key]))
-                    else:
-                        sent =self._pos_response()
-            elif 'intent' in dst_msg:
-                if self.cur_intent == dst_msg['intent']:
+                    slots_asked.add(key)
+                if not self.cur_slots_all >= slots_asked: # if DTW ask slots not included in current intent
+                    sent = self._neg_response(None)
+                else:
+                    for key in dst_msg['slot']: # check if each slot DTW returned is correct
+                        ### if any of the slot is incorrect, response the sentence with the correct slot
+                        if self.cur_slot[key] != dst_msg['slot'][key]:
+                            sent = self._neg_response(set([key]))
+                            break
+                        else: # return positive response if all DTW slots are correct
+                            sent = self._pos_response()
+            if 'intent' in dst_msg:
+                if self.cur_intent != dst_msg['intent']: # check if the DTW intent correct
                     sent = self._neg_response(intent=self.cur_intent)
                 else:
                     sent = self._pos_response()
 
         elif dst_msg['action'] == 'question':
-            slots_asked = set([])
-            intent_asked = ''
             if 'slot' in dst_msg:
                 for key in dst_msg['slot']:
                     slots_asked.add(key)
             if 'intent' in dst_msg:
                 intent_asked = dst_msg['intent']
 
-            sent = self.sentence_generate(intent_asked, slots_asked)
-            print sent
+            ### check correctness
+            if not self.cur_slots_all >= slots_asked: # if DTW ask slots not included in current intent
+                sent = self._neg_response(None)
+            else:
+                sent = self.sentence_generate(slots_asked)
 
         elif dst_msg['action'] == 'response':
             self.dialogue_end = True
@@ -96,25 +114,27 @@ class Simulator():
 
         return sent
 
-    def sentence_generate(self, intent_asked='', slots_asked=set([])):
-        intent_asked = intent_asked if len(intent_asked) > 0 else self.cur_intent
-        templates = self.intent_template_map[intent_asked]
-        shuffle(templates)
+    def sentence_generate(self, slots_asked=set([])):
+        #intent_asked = intent_asked if len(intent_asked) > 0 else self.cur_intent
+        shuffle(self.cur_templates)
         slots_all = set(slots)
-        for t in templates:
+        for t in self.cur_templates:
             t = t.decode('utf-8')
-            if len(slots_asked) is 0:
+            ### if no slots asked, use the any template which contains any currrent slot and 
+            ### doesn't contain any other slots
+            if len(slots_asked) is 0 and any(slot_token_map[s] in t for s in self.cur_slots_all)\
+                    and all(slot_token_map[s] not in t for s in slots_all - self.cur_slots_all):
                 sent = self._fill_slot(t)
                 break
-            else:
-                if all(slot_token_map[s] in t for s in slots_asked) and\
-                        all(slot_token_map[s] not in t for s in slots_all - slots_asked):
-                    sent = self._fill_slot(t)
-                    break
+            ### else if the template contains the slot asked and doesn't contain any other slots
+            elif all(slot_token_map[s] in t for s in slots_asked) and\
+                    all(slot_token_map[s] not in t for s in slots_all - slots_asked):
+                sent = self._fill_slot(t)
+                break
         return sent
 
     def _fill_slot(self, template):
-        new_temp = io_utils.naive_seg(template)
+        #new_temp = io_utils.naive_seg(template)
         new_temp = template
         for key in tokens:
             if key in new_temp:
@@ -131,21 +151,23 @@ class Simulator():
                 format(self.cur_intent, self.cur_slot['artist'],\
                 self.cur_slot['track'], self.cur_slot['genre'])
 
-    def _neg_response(self,intent=None,slot=None):
+    def _neg_response(self,intent=None,slot=set([])):
         # TODO
         responses = [u'不是 ',u'錯了 ', u'不對 ']
-        sent = self.sentence_generate(slots_asked=set(slot))
+        sent = ''
+        if slot is not None: # if all the slot are valid
+            sent = self.sentence_generate(slots_asked=slot)
         sent = responses[randrange(len(responses))] + sent
-        print 'No! Fuck U!'
-        print sent
+        #print 'No! Fuck U!'
+        #print sent
         return sent
 
     def _pos_response(self):
         # TODO
         responses = [u'是的',u'對', u'恩',u'對阿',u'沒錯']
         sent = responses[randrange(len(responses))]
-        print 'Yes! U Asshole!'
-        print sent
+        #print 'Yes! U Asshole!'
+        #print sent
         return sent
 
     def _rand(self, data_lists):
@@ -159,10 +181,12 @@ class Simulator():
                 data_path: path to the chinese_artist.json
                 genre_path: path to the genre.json
             Return: 
-                artists: list of artists
-                tracks: list of tracks
-                genres: list of genres
-                intent_template_map: intent to template dictionary
+                data: dict
+                    'artists': list of artists
+                    'tracks': list of tracks
+                    'track_artist_map': track_artist_map {'t1':'a1','t2':'a2']}
+                    'genres': list of genres
+                    'intent_template_map': intent to template dictionary
         '''
         ### load file and init
         with open(data_path,'r') as f:
@@ -172,9 +196,11 @@ class Simulator():
 
         artists = [s for s in data_artist]
         tracks = []
+        track_artist_map = {}
         for s in data_artist:
             for a in data_artist[s]:
                 for t in data_artist[s][a]:
+                    track_artist_map[t] = s
                     tracks.append(t)
         intent_template_map = {}
         for i in intents:
@@ -183,14 +209,16 @@ class Simulator():
             data_sent = pd.read_csv(f)
             data_sent = data_sent[data_sent.columns[0]].unique()
             intent_template_map[i] = data_sent
-        return [artists, tracks, genres, intent_template_map]
 
+        return {'artist':artists, 'tracks':tracks, 'track_artist_map':track_artist_map,\
+                'genres':genres, 'intent_template_map':intent_template_map}
 
 def main(args):
     simulator = Simulator(args.template_dir, args.data, args.genre, intents)
-    simulator.set_user_goal(intent='search', artist=u'五月天')
+    simulator.set_user_goal(intent='search', track=u'分手看看', random=True)
     simulator.print_cur_user_goal()
-    simulator.user_response({'action':'question','intent':'search'})
+    sent = simulator.user_response({'action':'confirm','intent':'search','slot':{'track':u'分手看看'}})
+    print sent
 
 if __name__ == '__main__':
     args = opt_parse()
