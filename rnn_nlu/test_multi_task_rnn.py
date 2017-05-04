@@ -239,6 +239,7 @@ class test_model():
 
   def feed_sentence(self,sentence):
     data_set = [[]]
+    sentence_seg = data_utils.naive_seg(sentence)
     token_ids = data_utils.prepare_one_data(sentence, self.vocab)
     print(token_ids) # NOTE debug
 
@@ -281,18 +282,21 @@ class test_model():
                     prob_tmp = tagging_probs[i]
                     begin = False
                 else:
-                    key = "".join(self.rev_vocab[ids] for ids in token_ids[start_i:i])
+                    #key = "".join(self.rev_vocab[ids] for ids in token_ids[start_i:i])
+                    key = ''.join(sentence_seg[start_i:i])
                     geo_avg = prob_tmp ** (1/(i-start_i))
-                    tag_dict[key.decode('utf-8')] = geo_avg / np.sum(geo_avg)
+                    tag_dict[key] = geo_avg / np.sum(geo_avg)
                     begin = True
             else:
-                if i == len(tagging_word)-1:
-                    key = "".join(self.rev_vocab[ids] for ids in token_ids[start_i:])
-                    geo_avg = prob_tmp ** (1/(i+1-start_i))
-                    tag_dict[key.decode('utf-8')] = geo_avg / np.sum(geo_avg)
-                    continue
                 prob_tmp *= tagging_probs[i]
         tag_tmp = tag
+
+    if not begin:
+        #key = "".join(self.rev_vocab[ids] for ids in token_ids[start_i:])
+        key = ''.join(sentence_seg[start_i:])
+        geo_avg = prob_tmp ** (1/(i+1-start_i))
+        tag_dict[key] = geo_avg / np.sum(geo_avg)
+ 
     return {'intent': classification_dict, 'slot': tag_dict}
 
 def main(_):
