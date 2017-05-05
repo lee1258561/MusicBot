@@ -4,6 +4,7 @@ import argparse
 import pprint
 
 from operator import itemgetter
+from spotipy.oauth2 import SpotifyClientCredentials
 
 class Database():
     def __init__(self,verbose=False):
@@ -24,9 +25,9 @@ class Database():
         items = results['tracks']['items']
         return items
 
-    def given(self, slots):
+    def search(self, slots):
         query = ""
-        filters = ['artist', 'album', 'track']
+        filters = ['artist', 'track']
         for f in filters:
             if f in slots.keys():
                 query += '%s:%s ' % (f, slots[f])
@@ -40,6 +41,46 @@ class Database():
             sentence = (u'Sorry Not Found...')
         print(sentence)
         return items, sentence
+
+    def info(self, slots):
+        ### TODO list more songs
+        if 'artist' in slots:
+            items = self.get_artist(slots['artist'])
+            if len(items) > 0:
+                artist = items[0]
+                album = self.get_artist_albums(artist)[0]
+                tracks = self.show_album_tracks(album)
+                tracks = [tracks[i]['name'] for i in range(len(tracks))]
+                ### NOTE currently only return newest album's songs
+                return {'artist':artist['name'],'genre':artist['genres'],\
+                        'album':album['name'], 'track':tracks}
+
+        if 'track' in slots:
+            items = self.get_track(slots['track'])
+            tracks = items[0]
+            return {'artist':tracks['artists'][0]['name'], 'album':tracks['album']['name'],\
+                    'track':tracks['name']}
+
+    def recommend(self, slots):
+        client_credentials_manager = SpotifyClientCredentials()
+        self.__sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+
+        seed_artists = None
+        seed_tracks = None
+        seed_genres = None
+        ### TODO: use artist & track lists
+        if 'track' in slots:
+            seed_tracks = [self.get_track(slots['track'])[0]['id']]
+        if 'artist' in slots:
+            seed_artists = [self.get_artist(slots['artist'])[0]['id']]
+        if 'genre' in slots:
+            seed_genres = [slots['genre']]
+
+        items = self.__sp.recommendations(seed_tracks=seed_tracks, seed_artists=seed_artists,
+                seed_genres=seed_genres, limit=6)['tracks']
+        tracks = [items[i]['name'] for i in range(len(items))]
+        return tracks
+
 
     def show_album_tracks(self, album):
         tracks = []
@@ -56,7 +97,7 @@ class Database():
         results = self.__sp.artist_albums(artist['id'], album_type='album')
         albums.extend(results['items'])
         while results['next']:
-            results = sp.next(results)
+            results = self.__sp.next(results)
             albums.extend(results['items'])
         print('Total albums:', len(albums))
         
@@ -80,8 +121,8 @@ def build_slot(sentence,pos):
 
         if pos[n] == 's':
             slot_content['artist'] = slot_content['artist'] + w
-        if pos[n] == 'a':
-            slot_content['album'] = slot_content['album'] + w
+        if pos[n] == 'g':
+            slot_content['genre'] = slot_content['genre'] + w
         if pos[n] == 't':
             slot_content['track'] = slot_content['track'] + w
     key_list = [s for s in slot_content]
@@ -104,10 +145,7 @@ if __name__ == '__main__':
         #'album': args.album,
         #'track': args.track
     }
-
-    db.given(slots)
+    print db.recommend({'track':'superhero'})
+    db.search(slots)
     
-
-
-
 
