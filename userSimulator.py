@@ -43,7 +43,7 @@ class Simulator():
         self.cur_slot['artist'] = artist
         self.cur_slot['track'] = track
         self.cur_slot['genre'] = None
-        if self.cur_intent == 'recomment': # only recommend would have genre slot
+        if self.cur_intent == 'recommend': # only recommend would have genre slot
             self.cur_slot['genre'] = genre
 
         ### if random init
