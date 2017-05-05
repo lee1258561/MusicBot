@@ -29,6 +29,9 @@ from tornado.options import define, options, parse_command_line
 define("port", default=8888, help="run on the given port", type=int)
 define("debug", default=False, help="run in debug mode")
 
+import sys
+sys.path.append('../')
+import userSimulator
 
 class MessageBuffer(object):
     def __init__(self):
@@ -71,7 +74,14 @@ class MessageBuffer(object):
 
 # Making this a non-singleton is left as an exercise for the reader.
 global_message_buffer = MessageBuffer()
+simulator = userSimulator.Simulator('../data/template/','../data/chinese_artist.json','../data/genres.json')
 
+def build_msg(sentence):
+    message = {
+        "id": str(uuid.uuid4()),
+        "body": sentence
+    }
+    return [message]
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
@@ -86,6 +96,7 @@ class MessageNewHandler(tornado.web.RequestHandler):
         }
         # to_basestring is necessary for Python 3's json encoder,
         # which doesn't accept byte strings.
+        print message
         message["html"] = tornado.escape.to_basestring(
             self.render_string("message.html", message=message))
         if self.get_argument("next", None):
@@ -93,11 +104,29 @@ class MessageNewHandler(tornado.web.RequestHandler):
         else:
             self.write(message)
         global_message_buffer.new_messages([message])
+        print message
         #reply = {
         #	"id": str(uuid.uuid4()),
         #	"body": userSimulator(message["body"]),
         #}
-
+class SlotNewHandler(tornado.web.RequestHandler):
+    def post(self):
+        slot={}
+        slot['intent'] = self.get_argument("intent")
+        slot['artist'] = self.get_argument('artist')
+        slot['track'] = self.get_argument('track')
+        slot['genre'] = self.get_argument('genre')
+        
+        for key in slot:
+            slot[key] = slot[key] if len(slot[key]) > 0 else None
+        simulator.set_user_goal(intent=slot['intent'],artist=slot['artist'],track=slot['track'],\
+                genre=slot['genre'])
+        simulator.print_cur_user_goal()
+        if self.get_argument("next", None):
+            self.redirect(self.get_argument("next"))
+        sent = simulator.user_response({'action':'question','intent':''})
+        message = build_msg(sent)
+        global_message_buffer.new_messages(message)
 
 class MessageUpdatesHandler(tornado.web.RequestHandler):
     @gen.coroutine
@@ -117,22 +146,22 @@ class MessageUpdatesHandler(tornado.web.RequestHandler):
 
 def main():
     parse_command_line()
-    global_message_buffer.new_messages([{"id": str(uuid.uuid4()), "body": "(Music Bot)：請輸入user的intent。"}])
+    global_message_buffer.new_messages([{"id": str(uuid.uuid4()), "body": "(Music Bot)：請輸入intent和slot"}])
     app = tornado.web.Application(
         [
             (r"/", MainHandler),
             (r"/a/message/new", MessageNewHandler),
             (r"/a/message/updates", MessageUpdatesHandler),
+            (r"/a/slots", SlotNewHandler),
             ],
         cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
         template_path=os.path.join(os.path.dirname(__file__), "templates"),
         static_path=os.path.join(os.path.dirname(__file__), "static"),
-        xsrf_cookies=True,
+        xsrf_cookies=False,
         debug=options.debug,
         )
     app.listen(options.port)
     tornado.ioloop.IOLoop.current().start()
-    print("???")
 
 
 if __name__ == "__main__":
