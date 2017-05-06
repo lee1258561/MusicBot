@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import fbchat
 
 from rnn_nlu import run_multi_task_rnn, data_utils
@@ -11,7 +12,7 @@ class fbBot(fbchat.Client):
         self.NLU = run_multi_task_rnn.NLU_test()
 
         print('database initializing...')
-        self.db = databaseAPI.Database()
+        self.db = databaseAPI.Database('./data/genre_map.json')
 
     def on_message(self, mid, author_id, author_name, message, metadata):
         self.markAsDelivered(author_id, mid) #mark delivered
@@ -29,8 +30,15 @@ class fbBot(fbchat.Client):
             print(intent, pos)
             slot = databaseAPI.build_slot(data_utils.naive_seg(message), pos)
             print(slot)
-            _, sentence = self.db.given(slot)
-        
+            if 'search' in intent:
+                _, sentence = self.db.search(slot)
+            elif 'recommend' in intent:
+                tracks, sentence = self.db.recommend(slot)
+            elif 'info' in intent:
+                info, sentence = self.db.info(slot)
+            elif 'neutral' in intent:
+                sentence = (u'可以說清楚些嗎？')
+
             self.send(author_id,sentence)
 
 bot = fbBot("cotapocil@1rentcar.top", "silencefarmer")

@@ -2,14 +2,18 @@
 import spotipy
 import argparse
 import pprint
+import json
 
 from operator import itemgetter
 from spotipy.oauth2 import SpotifyClientCredentials
 
 class Database():
-    def __init__(self,verbose=False):
+    def __init__(self, genre_map_path, verbose=False):
         self.__sp = spotipy.Spotify()
         self.__sp.trace = verbose #NOTE dubug
+
+        with open(genre_map_path,'r') as f:
+            self.genre_map = json.load(f)
 
     def get_artist(self, artist_name):
         results = self.__sp.search(q='artist:' + artist_name, type='artist')
@@ -51,15 +55,28 @@ class Database():
                 album = self.get_artist_albums(artist)[0]
                 tracks = self.show_album_tracks(album)
                 tracks = [tracks[i]['name'] for i in range(len(tracks))]
+
                 ### NOTE currently only return newest album's songs
-                return {'artist':artist['name'],'genre':artist['genres'],\
+                infos = {'artist':artist['name'],'genre':artist['genres'],\
                         'album':album['name'], 'track':tracks}
+
+                ### build sentence
+                sentence = (u''+infos['artist'])
+                sentence += u' 曲風:'
+                for g in artist['genres']:
+                    sentence += g + ', '
+                sentence = sentence[:-2] + ' '
+                sentence += u'專輯:'+ album['name']+u'歌曲:'+tracks[0]
 
         if 'track' in slots:
             items = self.get_track(slots['track'])
-            tracks = items[0]
-            return {'artist':tracks['artists'][0]['name'], 'album':tracks['album']['name'],\
-                    'track':tracks['name']}
+            if len(items) > 0:
+                tracks = items[0]
+                infos = {'artist':tracks['artists'][0]['name'],\
+                        'album':tracks['album']['name'], 'track':tracks['name']}
+                sentence = (u''+infos['artist']+u' 專輯:'+ infos['album']+u' 歌曲:'+infos['track'])
+
+        return infos, sentence
 
     def recommend(self, slots):
         client_credentials_manager = SpotifyClientCredentials()
@@ -70,16 +87,32 @@ class Database():
         seed_genres = None
         ### TODO: use artist & track lists
         if 'track' in slots:
-            seed_tracks = [self.get_track(slots['track'])[0]['id']]
+            tracks_get = self.get_track(slots['track'])
+            if len(tracks_get) > 0:
+                seed_tracks = [tracks_get[0]['id']]
         if 'artist' in slots:
-            seed_artists = [self.get_artist(slots['artist'])[0]['id']]
+            artists_get = self.get_artist(slots['artist'])
+            if len(aritsts_get) > 0:
+               seed_artists = [artists_get[0]['id']]
         if 'genre' in slots:
-            seed_genres = [slots['genre']]
+            if slots['genre'] in self.genre_map:
+                seed_genres = [self.genre_map[slots['genre']]]
 
-        items = self.__sp.recommendations(seed_tracks=seed_tracks, seed_artists=seed_artists,
-                seed_genres=seed_genres, limit=6)['tracks']
-        tracks = [items[i]['name'] for i in range(len(items))]
-        return tracks
+        try:
+            items = self.__sp.recommendations(seed_tracks=seed_tracks, seed_artists=seed_artists,
+                    seed_genres=seed_genres, limit=6)['tracks']
+        except spotipy.client.SpotifyException:
+            items = []
+            print (u'All seeds are None')
+
+
+        if len(items) > 0:  # if items found
+            tracks = [items[i]['name'] for i in range(len(items))]
+            sentence = (u'為你推薦 '+tracks[0]+u' 以及 '+tracks[1]+u' 和 '+tracks[2])
+        else:
+            tracks = []
+            sentence = (u'No recommended songs...')
+        return tracks, sentence
 
 
     def show_album_tracks(self, album):
@@ -113,7 +146,7 @@ def build_slot(sentence,pos):
     '''
         sentence: [你,的,English,真,的,是,very,good,的,呢]
     '''
-    slot_content = {'artist':'','album':'','track':''}
+    slot_content = {'artist':'','genre':'','track':''}
     for n in range(len(sentence)):
         w = ''.join(sentence[n])
         if not u'\u4e00' <= w[0] <= u'\u9fff': # check if chinese
@@ -139,13 +172,14 @@ if __name__ == '__main__':
     parser.add_argument('--track', type=str, help="Track to query.")
     args = parser.parse_args()
 
-    db = Database()
+    db = Database('../data/genre_map.json')
     slots = {
         'artist': args.artist,
         #'album': args.album,
         #'track': args.track
     }
-    print db.recommend({'track':'superhero'})
+    _, sent =  db.recommend({'track':u'hall of frame'})
+    print sent
     db.search(slots)
     
 

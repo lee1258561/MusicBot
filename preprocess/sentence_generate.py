@@ -73,6 +73,7 @@ def fill_template(data_artist,data_sent,genres,args_output, intent,nb_per_templa
             for t in data_artist[s][a]:
                 tracks.append(t)
 
+    genres = [key for key in genres]
 
     for n,sent in enumerate(data_sent):
         #intent = sent[0].decode('utf-8')

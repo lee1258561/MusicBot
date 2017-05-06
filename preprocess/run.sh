@@ -16,7 +16,7 @@ fi
 echo "make dataset ..."
 for i in ${TEMPLATES[@]}
 do
-	python2 sentence_generate.py ${TEMPLATE_DIR}$i ${DATA_DIR}/chinese_artist.json ${DATA_DIR}/genres.json\
+	python2 sentence_generate.py ${TEMPLATE_DIR}$i ${DATA_DIR}/chinese_artist.json ${DATA_DIR}/genre_map.json\
 		--nb_per_template $NB_PER_TEMP\
 		-o $OUT_PATH/Train
 done
