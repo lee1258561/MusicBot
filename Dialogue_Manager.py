@@ -11,8 +11,8 @@ import numpy as np
 
 def optParser():
     parser = argparse.ArgumentParser(description='Vanilla action controller')
-    parser.add_argument('--nlu_data', default='./hahaha2/nlu_data/',type=str, help='data dir')
-    parser.add_argument('--model',default='./hahaha2/model_tmp/',type=str,help='model dir')
+    parser.add_argument('--nlu_data', default='./data/nlu_data/',type=str, help='data dir')
+    parser.add_argument('--model',default='./model_tmp/',type=str,help='model dir')
     parser.add_argument('--template_dir',default='./data/template/',\
             help='sentence template directory')
     parser.add_argument('--data',default='./data/chinese_artist.json',\
@@ -27,7 +27,7 @@ def optParser():
 
 class Manager():
     def __init__(self,data_dir,train_dir,verbose=False):
-        self.DB = databaseAPI.Database(verbose=verbose)
+        #self.DB = databaseAPI.Database(verbose=verbose)
         self.NLUModel = test_multi_task_rnn.test_model(data_dir,train_dir)
         self.in_sent = ''
         self.in_sent_seg = []
@@ -276,14 +276,15 @@ class Manager():
                 for e2 in self.state['slot'][e]:
                     print(' ',end='')
                     print(e2,end='')
-                    print(': ',e2,end='')
+                    print(': ',self.state['slot'][e][e2],end='')
         print('\n')
         print('confirmed state:')
         print('confirmed intent:',self.confirmed_state['intent'])
         print('confirmed slots:',end='')
         for e in self.confirmed_state['slot']:
-            print(e,': ',end='')
+            print(e+':',end='')
             print(self.confirmed_state['slot'][e],end='')
+            print(' ',end='')
         print('\n')
         print('action:',end='')
         print(self.action_history[-1]['action'])
@@ -305,7 +306,7 @@ def main():
 
     #initialize user simulator:
     simulator = Simulator(args.template_dir, args.data, args.genre)
-    simulator.set_user_goal(intent='recommend',artist=u'林俊傑',track=u'她說',genre=u'搖滾')
+    simulator.set_user_goal(intent='search',artist=u'林俊傑',track=u'她說')
     simulator.print_cur_user_goal()
     sentence = simulator.user_response({'action':'question'})
     
