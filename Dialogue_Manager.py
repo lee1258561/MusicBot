@@ -19,6 +19,8 @@ def optParser():
             help='artist-album-track json data')
     parser.add_argument('--genre',default='./data/genres.json',\
             help='genres')
+    parser.add_argument('--genre_map',default='./data/genre_map.json',\
+            type=str,help='genre_map.json path')
     parser.add_argument('--random',action='store_true',help='whether to random user goal')
     parser.add_argument('-v',dest='verbose',default=False,action='store_true',help='verbose')
     args = parser.parse_args()
@@ -26,8 +28,8 @@ def optParser():
 
 
 class Manager():
-    def __init__(self,data_dir,train_dir,verbose=False):
-        #self.DB = databaseAPI.Database(verbose=verbose)
+    def __init__(self,data_dir,train_dir, genre_map, verbose=False):
+        self.DB = databaseAPI.Database(genre_map, verbose=verbose)
         self.NLUModel = test_multi_task_rnn.test_model(data_dir,train_dir)
         self.in_sent = ''
         self.in_sent_seg = []
@@ -302,7 +304,7 @@ class Manager():
 
 def main():
     args = optParser()
-    DM = Manager(args.nlu_data , args.model, verbose=args.verbose)
+    DM = Manager(args.nlu_data , args.model, args.genre_map, verbose=args.verbose)
 
     #initialize user simulator:
     simulator = Simulator(args.template_dir, args.data, args.genre)
