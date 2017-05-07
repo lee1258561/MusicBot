@@ -133,7 +133,7 @@ class SlotNewHandler(tornado.web.RequestHandler):
         message = build_msg(sent)
         global_message_buffer.new_messages(message)
         while True:
-            print "sent = ", sent
+            #print "sent = ", sent
             action = DM.get_input(sent)
             message = build_msg("(Music Bot)：State: " + str(DM.state))
             global_message_buffer.new_messages(message)
@@ -144,8 +144,12 @@ class SlotNewHandler(tornado.web.RequestHandler):
             sent = simulator.user_response(action)
             message = build_msg(sent)
             global_message_buffer.new_messages(message)
-            if DM.turn_end:
+            if DM.dialogue_end:
+                simulator.print_cur_user_goal()
                 print('Congratulation!!! You have ended dialogue successfully')
+                message = build_msg("(Music Bot)：想聽什麼歌？ (請輸入 intent 和 slot)")
+                global_message_buffer.new_messages(message)
+                DM.state_init()
                 break
 
 
