@@ -22,8 +22,8 @@ def optParser():
     parser.add_argument('--genre_map',default='./data/genre_map.json',\
             type=str,help='genre_map.json path')
     parser.add_argument('--random',action='store_true',help='whether to random user goal')
-    parser.add_argument('--stdin',default=False,action='store_true',help='verbose')
-    parser.add_argument('--auto_test',default=False,action='store_true',help='verbose')
+    parser.add_argument('--stdin',default=False,action='store_true',help='stdin test, enter sentence')
+    parser.add_argument('--auto_test',default=False,action='store_true',help='auto test, enter user goal')
     parser.add_argument('-v',dest='verbose',default=False,action='store_true',help='verbose')
     args = parser.parse_args()
     return args
@@ -39,8 +39,8 @@ class Manager():
         #slot to fill for each action
         self.intent_slot_dict = {'search':['artist','track'],'recommend':['artist','track','genre'],'info':['track','artist']}
         self.slot_prob_map = ['PAD','UNK',None,'track','artist','genre']
-        self.positive_response = [u'是的',u'對',u'對啊',u'恩',u'沒錯',u'是啊']
-        self.negative_response = [u'不是',u'錯了',u'不對']
+        self.positive_response = [u'是的',u'對',u'對啊',u'恩',u'沒錯',u'是啊',u'就是這樣',u'你真聰明']
+        self.negative_response = [u'不是',u'錯了',u'不對',u'不用',u'沒有',u'算了',u'不需要']
         #action threshold:
         self.intent_upper_threshold = 1.9
         self.intent_lower_threshold = 0.95
@@ -160,10 +160,11 @@ class Manager():
             elif self.confirmed_state['intent']=='recommend':
                 cur_action['action'] = 'info'
             cur_action['intent'] = self.confirmed_state['intent']
-            for slot_name in self.intent_slot_dict[cur_action['intent']]:
-                if self.confirmed_state['slot'][slot_name]!=-1 and self.confirmed_state['slot'][slot_name]!=None:
+            for slot_name in self.confirmed_state['slot']:
+                if self.confirmed_state['slot'][slot_name]!=-1:
                     cur_action['slot'][slot_name] = self.confirmed_state['slot'][slot_name]
-            print(cur_action)
+                else:
+                    cur_action['slot'][slot_name] = None
             self.action_history.append(cur_action)
             return cur_action
 
@@ -265,7 +266,7 @@ class Manager():
                 if not self.confirmed_state['slot'][slot_name]:
                     all_slot_filled = False
 
-        print('max_slot:',self.max_slot)
+        #print('max_slot:',self.max_slot)
         if self.confirmed_state['intent'] and all_slot_filled or self.cycle_num>=self.max_cycle_num:
             self.dialogue_end = True
         self.cycle_num += 1
@@ -324,8 +325,9 @@ def test(args):
         DM.print_current_state()
         sentence = simulator.user_response(action)
         if DM.dialogue_end:
+            simulator.print_cur_user_goal()
             print('\nCongratulation!!! You have ended one dialogue successfully\n')
-            self.state_init()
+            DM.state_init()
             break
 
 def set_simulator_goal(simulator):
@@ -358,6 +360,7 @@ def auto_test(args):
         DM.print_current_state()
         sentence = simulator.user_response(action)
         if DM.dialogue_end:
+            simulator.print_cur_user_goal()
             print('\nCongratulation!!! You have ended one dialogue successfully\n')
             DM.state_init()
             sentence = set_simulator_goal(simulator)
