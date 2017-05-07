@@ -39,8 +39,8 @@ class Manager():
         #slot to fill for each action
         self.intent_slot_dict = {'search':['artist','track'],'recommend':['artist','track','genre'],'info':['track','artist']}
         self.slot_prob_map = ['PAD','UNK',None,'track','artist','genre']
-        self.positive_response = [u'是的',u'對',u'對啊',u'恩',u'沒錯',u'是啊',u'就是這樣',u'你真聰明']
-        self.negative_response = [u'不是',u'錯了',u'不對',u'不用',u'沒有',u'算了',u'不需要']
+        self.positive_response = [u'是的',u'對',u'對啊',u'恩',u'沒錯',u'是啊',u'就是這樣',u'你真聰明',u'是']
+        self.negative_response = [u'不是',u'錯了',u'不對',u'不用',u'沒有',u'算了',u'不需要',u'不 ',u'否',u'錯']
         #action threshold:
         self.intent_upper_threshold = 1.9
         self.intent_lower_threshold = 0.95
@@ -50,6 +50,7 @@ class Manager():
         #if cycle_num > max_cycle_num, end the dialogue
         self.max_cycle_num = 10
 
+        self.dialogue_end_sentence = ''
         self.state_init()
         
 
@@ -155,10 +156,14 @@ class Manager():
             cur_action = {'intent':'','slot':{}}
             if self.confirmed_state['intent']=='search':
                 cur_action['action'] = 'response'
+                _,sentence = self.DB.search(self.confirmed_state['slot'])
             elif self.confirmed_state['intent']=='info':
                 cur_action['action'] = 'info'
+                _,sentence = self.DB.info(self.confirmed_state['slot'])
             elif self.confirmed_state['intent']=='recommend':
                 cur_action['action'] = 'info'
+                _,sentence = self.DB.recommend(self.confirmed_state['slot'])
+            self.dialogue_end_sentence = sentence
             cur_action['intent'] = self.confirmed_state['intent']
             for slot_name in self.confirmed_state['slot']:
                 if self.confirmed_state['slot'][slot_name]!=-1:
@@ -326,6 +331,7 @@ def test(args):
         sentence = simulator.user_response(action)
         if DM.dialogue_end:
             simulator.print_cur_user_goal()
+            print(DM.dialogue_end_sentence)
             print('\nCongratulation!!! You have ended one dialogue successfully\n')
             DM.state_init()
             break
@@ -361,6 +367,7 @@ def auto_test(args):
         sentence = simulator.user_response(action)
         if DM.dialogue_end:
             simulator.print_cur_user_goal()
+            print(DM.dialogue_end_sentence)
             print('\nCongratulation!!! You have ended one dialogue successfully\n')
             DM.state_init()
             sentence = set_simulator_goal(simulator)
@@ -377,6 +384,7 @@ def stdin_test(args):
         action = DM.get_input(sentence)
         DM.print_current_state()
         if DM.dialogue_end:
+            print(DM.dialogue_end_sentence)
             print('\nCongratulation!!! You have ended one dialogue successfully\n')
             DM.state_init()
         
