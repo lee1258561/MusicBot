@@ -6,30 +6,35 @@
   train data [drive](https://drive.google.com/open?id=0B6HG80vOD3w7NFdUbEUxQnBLRVk)
   
   
-## Milestone 1 Demo
+## Milestone 2 Demo
+**(Important!) 目前只有中文輸入全面支援，英文輸入僅有User Simulator demo支援**  
+有web的DM demo界面，但是log並不完整。DM CLI則有完整的訊息。
 
 python2.7
 
 Install required packages:  
 `$ pip2 install -r requirements.txt`
 
-Run demo:  
-Go to rnn-nlu directory, then run:  
-`$ python2 actionController.py`  
+### User Simulator CLI Demo :  
+`$ python2 userSimulator.py`  
+輸入格式以及範例請參考report_milestone2.pdf  
 
-or use -v option to check out all the spotipy API messages:  
-`$ python2 actionController.py -v`
+### Dialogue Management CLI Demo :   
+**(Important!) Source Spotify API token**  
+`$ . ./data/config.sh` 
 
-Activate the fb bot to interact with 'The Silence Bot' account using fb messager:
-`$ python2 bot.py`
+Then run:  
+`$ python2 Dialogue_Manager.py --auto_test`  
+or  
+`$ python2 Dialogue_Manager.py --stdin`  
+輸入格式以及範例請參考report_milestone2.pdf  
 
-**目前只有train中文語句**。training的時候只有使用中文的模板並以華語歌手的資料填空來生data，所以目前基本上只有中文的語句會比較好。
+### Web Interface Dialogue Management Demo:  
+**(Important!) User friendly interface, but the DM logs may not as complete as the CLI one above**  
+**(Important!) Source Spotify API token**  
+`$ . ./data/config.sh`  
 
-#### Examples
-  我想聽林正的歌  
-  我想聽林俊傑的修煉愛情  
-  快播幾首依然范特西中的歌  
-  我只聽maroon 5的歌  
-  播一下垃圾車  
-  可以幫我找林正的我不是他嗎？  
-  
+Go to `chat/` directory, then run:  
+`$ python2 chatdemo.py`  
+會跑在本機的8888 port  
+
