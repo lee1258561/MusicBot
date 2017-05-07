@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+    # -*- coding: utf-8 -*-
 from __future__ import print_function
 
 import argparse
@@ -48,7 +48,7 @@ class Manager():
         self.slot_lower_threshold = 0.95
 
         #if cycle_num > max_cycle_num, end the dialogue
-        self.max_cycle_num = 10
+        self.max_cycle_num = 12
 
         self.dialogue_end_sentence = ''
         self.state_init()
@@ -57,7 +57,7 @@ class Manager():
     def get_input(self,sentence):
         self.in_sent = sentence
 
-        sentence = re.sub(u'就這樣|是的|對啊|對|恩|沒錯|不是|錯了|不對| ','',sentence)
+        sentence = re.sub(u'就這樣|是的|對啊|對|恩|沒錯|不是|錯了|不對','',sentence)
         print("CURRENT TURN START!!!!!!")
         print('input:',self.in_sent)
         print('NLU_input:',sentence)
@@ -343,9 +343,12 @@ def test(args):
 
 def set_simulator_goal(simulator):
     intent_slot_dict = {'search':['artist','track'],'recommend':['artist','track','genre'],'info':['track','artist']}
-    print('Please enter user intent\n>',end='')
-    intent = sys.stdin.readline()
-    intent = intent.strip()
+    while(True):
+        print('Please enter user intent "search" or "recommend" or "info"\n>',end='')
+        intent = sys.stdin.readline()
+        intent = intent.strip()
+        if intent in intent_slot_dict:
+            break
     slot_dict = {'artist':None,'genre':None,'track':None}
     for slot_name in intent_slot_dict[intent]:
         print('Please enter ' + slot_name + '\n>',end='')
