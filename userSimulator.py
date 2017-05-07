@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import argparse
 import json
+import sys
 
 from utils import io_utils
 from random import randrange, shuffle
@@ -29,16 +30,23 @@ def opt_parse():
 
 class Simulator():
     def __init__(self, template_dir, data_path, genre_path, intents=intents):
-        self.data = self._load_data(template_dir, data_path, genre_path)
+        self.data = self.__load_data(template_dir, data_path, genre_path)
         self.intents = intents[:3]
+
         self.dialogue_end = True
+        self.cur_set_goal = False
         self.cur_intent = ''
         self.cur_slot = {}
+        self.cur_nb_turn = 0
+        self.cur_reward = 0.
         self.cur_slots_all = set()
 
     def set_user_goal(self, intent=None, artist=None, track=None, genre=None, random=False):
         ''' set the current user goal. manually init each slot or random init
         '''
+        self.__reset_cur()
+        self.cur_set_goal = True
+
         self.cur_intent = intent
         self.cur_slot['artist'] = artist
         self.cur_slot['track'] = track
@@ -48,8 +56,8 @@ class Simulator():
 
         ### if random init
         if random:
-            self.cur_intent = self._rand(self.intents)
-            self.cur_slot['track'] = self._rand(self.data['tracks'])
+            self.cur_intent = self.__rand(self.intents)
+            self.cur_slot['track'] = self.__rand(self.data['tracks'])
             self.cur_slot['artist'] =  self.data['track_artist_map'][self.cur_slot['track']]
             ### TODO: random init genre as well
 
@@ -66,6 +74,7 @@ class Simulator():
                 sent: string, user response
         '''
         self.dialogue_end = False
+        self.cur_nb_turn += 1
         sent=''
         slots_asked = set([])
         intent_asked = ''
@@ -79,7 +88,7 @@ class Simulator():
                 for key in dst_msg['slot']:
                     slots_asked.add(key)
                 if not self.cur_slots_all >= slots_asked: # if DTW ask slots not included in current intent
-                    sent = self._neg_response(None)
+                    sent = self.__neg_response(None)
                 else:
                     slots_asked.clear() # clear all the elements
                     for key in dst_msg['slot']: # check if each slot DTW returned is correct
@@ -87,12 +96,12 @@ class Simulator():
                         if self.cur_slot[key] != dst_msg['slot'][key]:
                             slots_asked.add(key)
                     if len(slots_asked) > 0:
-                        sent = self._neg_response(slot=slots_asked,strict=False)
+                        sent = self.__neg_response(slot=slots_asked,strict=False)
             if 'intent' in dst_msg:
                 if self.cur_intent != dst_msg['intent']: # check if the DTW intent correct
-                    sent = self._neg_response()
+                    sent = self.__neg_response()
             if len(sent) == 0:
-                sent = self._pos_response()
+                sent = self.__pos_response()
 
         elif dst_msg['action'] == 'question':
             if 'slot' in dst_msg:
@@ -103,7 +112,7 @@ class Simulator():
 
             ### check correctness
             if not self.cur_slots_all >= slots_asked: # if DTW ask slots not included in current intent
-                sent = self._neg_response(None)
+                sent = self.__neg_response(None)
             else:
                 sent = self.sentence_generate(slots_asked)
 
@@ -111,7 +120,11 @@ class Simulator():
             self.dialogue_end = True
         elif dst_msg['action'] == 'inform':
             self.dialogue_end = True
-
+        
+        ### return reward
+        if self.dialogue_end:
+            self.__reward_calculate(dst_msg)
+            
         return sent
 
     def sentence_generate(self, slots_asked=set([]), strict=True):
@@ -126,22 +139,22 @@ class Simulator():
             ### doesn't contain any other slots
             if len(slots_asked) is 0 and any(slot_token_map[s] in t for s in self.cur_slots_all)\
                     and all(slot_token_map[s] not in t for s in slots_all - self.cur_slots_all):
-                sent = self._fill_slot(t)
+                sent = self.__fill_slot(t)
                 break
             ### else if the template contains the slot asked and doesn't contain any other slots
             if strict:
                 if all(slot_token_map[s] in t for s in slots_asked) and\
                         all(slot_token_map[s] not in t for s in slots_all - slots_asked):
-                    sent = self._fill_slot(t)
+                    sent = self.__fill_slot(t)
                     break
             else:
                 if any(slot_token_map[s] in t for s in slots_asked) and\
                         all(slot_token_map[s] not in t for s in slots_all - slots_asked):
-                    sent = self._fill_slot(t)
+                    sent = self.__fill_slot(t)
                     break
         return sent
 
-    def _fill_slot(self, template):
+    def __fill_slot(self, template):
         #new_temp = io_utils.naive_seg(template)
         new_temp = template
         for key in tokens:
@@ -155,11 +168,11 @@ class Simulator():
 
     def print_cur_user_goal(self):
         # NOTE Debug
-        print u'[DEBUG] intent:[{}], artist:[{}], track:[{}], genre:[{}]'.\
+        print u'[DEBUG] intent:[{}], artist:[{}], track:[{}], genre:[{}], reward:[{}], turns:[{}]'.\
                 format(self.cur_intent, self.cur_slot['artist'],\
-                self.cur_slot['track'], self.cur_slot['genre'])
+                self.cur_slot['track'], self.cur_slot['genre'], self.cur_reward, self.cur_nb_turn)
 
-    def _neg_response(self,slot=set([]),strict=True):
+    def __neg_response(self,slot=set([]),strict=True):
         # TODO
         responses = [u'不是 ',u'錯了 ', u'不對 ']
         sent = ''
@@ -170,7 +183,7 @@ class Simulator():
         #print sent
         return sent
 
-    def _pos_response(self):
+    def __pos_response(self):
         # TODO
         responses = [u'是的',u'對', u'恩',u'對阿',u'沒錯']
         sent = responses[randrange(len(responses))]
@@ -178,10 +191,28 @@ class Simulator():
         #print sent
         return sent
 
-    def _rand(self, data_lists):
+    def __reward_calculate(self,dst_msg):
+        self.cur_reward = -0.1*self.cur_nb_turn
+        if dst_msg['intent'] == self.cur_intent and\
+            dst_msg['slot']['artist'] == self.cur_slot['artist'] and\
+            dst_msg['slot']['track'] == self.cur_slot['track'] and\
+            dst_msg['slot']['genre'] == self.cur_slot['genre']:
+                self.cur_reward += 1
+        else:
+            self.cur_reward -= 1
+
+    def __reset_cur(self):
+        self.dialogue_end = True
+        self.cur_intent = ''
+        self.cur_slot = {}
+        self.cur_nb_turn = 0
+        self.cur_reward = 0.
+        self.cur_slots_all = set()
+
+    def __rand(self, data_lists):
         return data_lists[randrange(len(data_lists))]
 
-    def _load_data(self,template_dir, data_path, genre_path):
+    def __load_data(self,template_dir, data_path, genre_path):
         '''
             Load templates and all the slot data
             Arguments: 
@@ -225,8 +256,37 @@ def main(args):
     simulator = Simulator(args.template_dir, args.data, args.genre, intents)
     simulator.set_user_goal(intent='search',artist=u'郭靖', track=u'分手看看', random=True)
     simulator.print_cur_user_goal()
-    sent = simulator.user_response({'action':'confirm','intent':'search','slot':{'track':u'分手看看2','artist':'fuck'}})
-    print sent
+    #sent = simulator.user_response({'action':'confirm','intent':'search','slot':{'track':u'分手看看2','artist':'fuck'}})
+    #print sent
+
+    print(u':想要幹麼呢？')
+    while True:
+        if simulator.dialogue_end:
+            print ('')
+            print(u':請設定user intent和slots:  [\'intent\',\'artist\',\'track\',\'genre\']')
+            input_goal = sys.stdin.readline()
+            try:
+                input_goal =  eval(input_goal.decode('utf-8'))
+                input_goal = [ g if len(g) > 0 else None for g in input_goal]
+                simulator.set_user_goal(intent=input_goal[0], artist=input_goal[1],\
+                        track=input_goal[2],genre=input_goal[3])
+                simulator.print_cur_user_goal()
+                print '>>' + simulator.user_response({'action':'question'})
+                simulator.print_cur_user_goal()
+            except:
+                print 'wrong format, should be  [\'intent\',\'artist\',\'track\',\'genre\']'
+                continue
+        if simulator.cur_set_goal:
+            print ('')
+            print(u':請輸入DM的semantic frame: {"action":"?", "intent":"", "slot":{"artist":""}}')
+            input_frame = sys.stdin.readline()
+            input_frame = eval(input_frame.decode('utf-8'))
+            sent_res = simulator.user_response(input_frame)
+            print '>>' + sent_res
+
+        if simulator.dialogue_end:
+            print ('Dialogue finished!!!')
+            simulator.print_cur_user_goal()
 
 if __name__ == '__main__':
     args = opt_parse()

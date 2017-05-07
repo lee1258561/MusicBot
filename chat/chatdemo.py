@@ -1,19 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-#
-# Copyright 2009 Facebook
-#
-# Licensed under the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License. You may obtain
-# a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations
-# under the License.
 
 import logging
 import tornado.escape
@@ -31,7 +17,26 @@ define("debug", default=False, help="run in debug mode")
 
 import sys
 sys.path.append('../')
-import userSimulator
+from userSimulator import Simulator
+from Dialogue_Manager import Manager
+import argparse
+
+def optParser():
+    parser = argparse.ArgumentParser(description='Vanilla action controller')
+    parser.add_argument('--nlu_data', default='../data/nlu_data/',type=str, help='data dir')
+    parser.add_argument('--model',default='../model_tmp/',type=str,help='model dir')
+    parser.add_argument('--template_dir',default='../data/template/',\
+            help='sentence template directory')
+    parser.add_argument('--data',default='../data/chinese_artist.json',\
+            help='artist-album-track json data')
+    parser.add_argument('--genre',default='../data/genres.json',\
+            help='genres')
+    parser.add_argument('--genre_map',default='../data/genre_map.json',\
+            type=str,help='genre_map.json path')
+    parser.add_argument('--random',action='store_true',help='whether to random user goal')
+    parser.add_argument('-v',dest='verbose',default=False,action='store_true',help='verbose')
+    args = parser.parse_args()
+    return args
 
 class MessageBuffer(object):
     def __init__(self):
@@ -74,7 +79,9 @@ class MessageBuffer(object):
 
 # Making this a non-singleton is left as an exercise for the reader.
 global_message_buffer = MessageBuffer()
-simulator = userSimulator.Simulator('../data/template/','../data/chinese_artist.json','../data/genres.json')
+simulator = Simulator('../data/template/','../data/chinese_artist.json','../data/genres.json')
+args = optParser()
+DM = Manager(args.nlu_data , args.model, args.genre_map, verbose=args.verbose)
 
 def build_msg(sentence):
     message = {
@@ -82,6 +89,7 @@ def build_msg(sentence):
         "body": sentence
     }
     return [message]
+
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
@@ -104,11 +112,8 @@ class MessageNewHandler(tornado.web.RequestHandler):
         else:
             self.write(message)
         global_message_buffer.new_messages([message])
-        print message
-        #reply = {
-        #	"id": str(uuid.uuid4()),
-        #	"body": userSimulator(message["body"]),
-        #}
+
+
 class SlotNewHandler(tornado.web.RequestHandler):
     def post(self):
         slot={}
@@ -127,6 +132,22 @@ class SlotNewHandler(tornado.web.RequestHandler):
         sent = simulator.user_response({'action':'question','intent':''})
         message = build_msg(sent)
         global_message_buffer.new_messages(message)
+        while True:
+            print "sent = ", sent
+            action = DM.get_input(sent)
+            message = build_msg("(Music Bot)：State: " + str(DM.state))
+            global_message_buffer.new_messages(message)
+            message = build_msg("(Music Bot)：Confirmed State: " + str(DM.confirmed_state))
+            global_message_buffer.new_messages(message)
+            message = build_msg("(Music Bot)：Action History: " + str(DM.action_history))
+            global_message_buffer.new_messages(message)
+            sent = simulator.user_response(action)
+            message = build_msg(sent)
+            global_message_buffer.new_messages(message)
+            if DM.turn_end:
+                print('Congratulation!!! You have ended dialogue successfully')
+                break
+
 
 class MessageUpdatesHandler(tornado.web.RequestHandler):
     @gen.coroutine
@@ -146,7 +167,7 @@ class MessageUpdatesHandler(tornado.web.RequestHandler):
 
 def main():
     parse_command_line()
-    global_message_buffer.new_messages([{"id": str(uuid.uuid4()), "body": "(Music Bot)：請輸入intent和slot"}])
+    global_message_buffer.new_messages([{"id": str(uuid.uuid4()), "body": "(Music Bot)：想聽什麼歌？ (請輸入 intent 和 slot)"}])
     app = tornado.web.Application(
         [
             (r"/", MainHandler),
