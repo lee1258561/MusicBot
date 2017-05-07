@@ -33,6 +33,8 @@ class Simulator():
     def __init__(self, template_dir, data_path, genre_path, intents=intents):
         self.data = self.__load_data(template_dir, data_path, genre_path)
         self.intents = intents[:3]
+        self.prefix_pos_responses = [u'是的',u'對', u'恩',u'對阿',u'沒錯', u'是']
+        self.prefix_neg_responses = [u'不是 ',u'錯了 ', u'不對 ']
 
         self.dialogue_end = True
         self.cur_set_goal = False
@@ -47,7 +49,6 @@ class Simulator():
         ''' set the current user goal. manually init each slot or random init
         '''
         self.__reset_cur()
-        self.cur_set_goal = True
 
         self.cur_intent = intent
         self.cur_slot['artist'] = artist
@@ -66,61 +67,39 @@ class Simulator():
         ### all the possible slots set based on current intent
         self.cur_slots_all = set([s for s in self.cur_slot if self.cur_slot[s] is not None]) 
         self.cur_templates = self.data['intent_template_map'][self.cur_intent] # use the current intent template
+        self.cur_set_goal = True
 
     def user_response(self, dst_msg=None):
         ''' Given DST message, return user response
             Arguments:
-                dst_msg: DST message. {'action':'confirm|question|response|inform',\
+                dst_msg: DST message. {'action':'confirm|question|response|info',\
                             'intent':'', 'slot':{'slot_name':'value'}}
             Return:
                 sent: string, user response
         '''
+        ### init
         self.dialogue_end = False
         self.cur_nb_turn += 1
         sent=''
         slots_asked = set([])
         intent_asked = ''
+        if 'slot' in dst_msg: # init slots asked
+            for key in dst_msg['slot']:
+                slots_asked.add(key)
+        if 'intent' in dst_msg: # init intent_asked
+            intent_asked = dst_msg['intent']
 
         if dst_msg is None and not self.dialogue_end:
             ### NOTE: should not happen
             print ('[ERROR] Need DST message...')
         
         if dst_msg['action'] == 'confirm':
-            if 'slot' in dst_msg:
-                for key in dst_msg['slot']:
-                    slots_asked.add(key)
-                if not self.cur_slots_all >= slots_asked: # if DTW ask slots not included in current intent
-                    sent = self.__neg_response(None)
-                else:
-                    slots_asked.clear() # clear all the elements
-                    for key in dst_msg['slot']: # check if each slot DTW returned is correct
-                        ### add incorrect slots to slots_asked, then generate neg_response
-                        if self.cur_slot[key] != dst_msg['slot'][key]:
-                            slots_asked.add(key)
-                    if len(slots_asked) > 0:
-                        sent = self.__neg_response(slot=slots_asked,strict=False)
-            if 'intent' in dst_msg:
-                if self.cur_intent != dst_msg['intent']: # check if the DTW intent correct
-                    sent = self.__neg_response()
-            if len(sent) == 0:
-                sent = self.__pos_response()
-
+            sent = self.__confirm(dst_msg, slots_asked, intent_asked)
         elif dst_msg['action'] == 'question':
-            if 'slot' in dst_msg:
-                for key in dst_msg['slot']:
-                    slots_asked.add(key)
-            if 'intent' in dst_msg:
-                intent_asked = dst_msg['intent']
-
-            ### check correctness
-            if not self.cur_slots_all >= slots_asked: # if DTW ask slots not included in current intent
-                sent = self.__neg_response(None)
-            else:
-                sent = self.sentence_generate(slots_asked)
-
+            sent = self.__question(dst_msg, slots_asked, intent_asked)
         elif dst_msg['action'] == 'response':
             self.dialogue_end = True
-        elif dst_msg['action'] == 'inform':
+        elif dst_msg['action'] == 'info':
             self.dialogue_end = True
         
         ### return reward
@@ -175,21 +154,48 @@ class Simulator():
                 self.cur_slot['track'], self.cur_slot['genre'],\
                 self.cur_reward, self.cur_nb_turn, self.cur_success))
 
+    def __confirm(self, dst_msg, slots_asked, intent_asked):
+        sent = ''
+        if 'slot' in dst_msg:
+            if not self.cur_slots_all >= slots_asked: # if DTW ask slots not included in current intent
+                sent = self.__neg_response(None)
+            else:
+                slots_asked.clear() # clear all the elements
+                for key in dst_msg['slot']: # check if each slot DTW returned is correct
+                    ### add incorrect slots to slots_asked, then generate neg_response
+                    if self.cur_slot[key] != dst_msg['slot'][key]:
+                        slots_asked.add(key)
+                if len(slots_asked) > 0:
+                    sent = self.__neg_response(slot=slots_asked,strict=False)
+        # check if the DTW intent correct
+        if len(intent_asked) > 0 and intent_asked != self.cur_intent:
+            sent = self.__neg_response()
+        if len(sent) == 0:
+            sent = self.__pos_response()
+        return sent
+
+    def __question(self, dst_msg, slots_asked, intent_asked):
+        sent = ''
+        ### check correctness
+        if not self.cur_slots_all >= slots_asked: # if DTW ask slots not included in current intent
+            sent = self.__neg_response(None)
+        else:
+            sent = self.sentence_generate(slots_asked)
+        return sent
+
     def __neg_response(self,slot=set([]),strict=True):
         # TODO
-        responses = [u'不是 ',u'錯了 ', u'不對 ']
         sent = ''
         if slot is not None: # if all the slot are valid
             sent = self.sentence_generate(slots_asked=slot,strict=strict)
-        sent = responses[randrange(len(responses))] + sent
+        sent = self.prefix_neg_responses[randrange(len(self.prefix_neg_responses))] + sent
         #print 'No! Fuck U!'
         #print sent
         return sent
 
     def __pos_response(self):
         # TODO
-        responses = [u'是的',u'對', u'恩',u'對阿',u'沒錯', u'是']
-        sent = responses[randrange(len(responses))]
+        sent = self.prefix_pos_responses[randrange(len(self.prefix_pos_responses))]
         #print 'Yes! U Asshole!'
         #print sent
         return sent
