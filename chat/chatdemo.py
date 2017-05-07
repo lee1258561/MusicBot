@@ -112,6 +112,21 @@ class MessageNewHandler(tornado.web.RequestHandler):
         else:
             self.write(message)
         global_message_buffer.new_messages([message])
+        sent = message["body"]
+        while True:
+            action = DM.get_input(sent)
+            message = build_msg("(Music Bot)：State: " + str(DM.state))
+            global_message_buffer.new_messages(message)
+            message = build_msg("(Music Bot)：Confirmed State: " + str(DM.confirmed_state))
+            global_message_buffer.new_messages(message)
+            message = build_msg("(Music Bot)：Action: " + str(DM.action_history[-1]))
+            global_message_buffer.new_messages(message)
+            if DM.dialogue_end:
+                print('Congratulation!!! You have ended dialogue successfully')
+                message = build_msg("(Music Bot)：想聽什麼歌？ (請輸入 intent 和 slot)")
+                global_message_buffer.new_messages(message)
+                DM.state_init()
+                break
 
 
 class SlotNewHandler(tornado.web.RequestHandler):
@@ -133,13 +148,12 @@ class SlotNewHandler(tornado.web.RequestHandler):
         message = build_msg(sent)
         global_message_buffer.new_messages(message)
         while True:
-            #print "sent = ", sent
             action = DM.get_input(sent)
             message = build_msg("(Music Bot)：State: " + str(DM.state))
             global_message_buffer.new_messages(message)
             message = build_msg("(Music Bot)：Confirmed State: " + str(DM.confirmed_state))
             global_message_buffer.new_messages(message)
-            message = build_msg("(Music Bot)：Action History: " + str(DM.action_history))
+            message = build_msg("(Music Bot)：Action: " + str(DM.action_history[-1]))
             global_message_buffer.new_messages(message)
             sent = simulator.user_response(action)
             message = build_msg(sent)
@@ -165,8 +179,8 @@ class MessageUpdatesHandler(tornado.web.RequestHandler):
             return
         self.write(dict(messages=messages))
 
-    def on_connection_close(self):
-        global_message_buffer.cancel_wait(self.future)
+    #def on_connection_close(self):
+        #global_message_buffer.cancel_wait(self.future)
 
 
 def main():

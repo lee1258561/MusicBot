@@ -123,6 +123,8 @@ var updater = {
         for (var i = 0; i < messages.length; i++) {
             updater.showMessage(messages[i]);
         }
+        setTimeout(location.reload.bind(location), 1000);
+        location.reload()
     },
 
     showMessage: function(message) {
