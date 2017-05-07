@@ -38,8 +38,9 @@ class Simulator():
         self.cur_set_goal = False
         self.cur_intent = ''
         self.cur_slot = {}
-        self.cur_nb_turn = 0
+        self.cur_nb_turn = -1 # simulator started by receive an init question
         self.cur_reward = 0.
+        self.cur_success = False
         self.cur_slots_all = set()
 
     def set_user_goal(self, intent=None, artist=None, track=None, genre=None, random=False):
@@ -169,9 +170,10 @@ class Simulator():
 
     def print_cur_user_goal(self):
         # NOTE Debug
-        print (u'[DEBUG] intent:[{}], artist:[{}], track:[{}], genre:[{}], reward:[{}], turns:[{}]'.\
+        print (u'[DEBUG] intent:[{}], artist:[{}], track:[{}],genre:[{}], reward:[{}], turns:[{}], success:[{}]'.\
                 format(self.cur_intent, self.cur_slot['artist'],\
-                self.cur_slot['track'], self.cur_slot['genre'], self.cur_reward, self.cur_nb_turn))
+                self.cur_slot['track'], self.cur_slot['genre'],\
+                self.cur_reward, self.cur_nb_turn, self.cur_success))
 
     def __neg_response(self,slot=set([]),strict=True):
         # TODO
@@ -206,6 +208,7 @@ class Simulator():
             dst_msg['slot']['track'] == self.cur_slot['track'] and\
             dst_msg['slot']['genre'] == self.cur_slot['genre']:
                 self.cur_reward += 1
+                self.cur_success = True
 
        # else:
        #     self.cur_reward -= 1
@@ -214,8 +217,9 @@ class Simulator():
         self.dialogue_end = True
         self.cur_intent = ''
         self.cur_slot = {}
-        self.cur_nb_turn = 0
+        self.cur_nb_turn = -1
         self.cur_reward = 0.
+        self.cur_success = False
         self.cur_slots_all = set()
 
     def __rand(self, data_lists):
@@ -280,8 +284,8 @@ def main(args):
                 input_goal = [ g if len(g) > 0 else None for g in input_goal]
                 simulator.set_user_goal(intent=input_goal[0], artist=input_goal[1],\
                         track=input_goal[2],genre=input_goal[3])
-                simulator.print_cur_user_goal()
                 print ('>>>' + simulator.user_response({'action':'question'}))
+                simulator.print_cur_user_goal()
             except:
                 print ('wrong format, should be  [\'intent\',\'artist\',\'track\',\'genre\']')
                 continue
