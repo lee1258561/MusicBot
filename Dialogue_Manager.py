@@ -22,6 +22,8 @@ def optParser():
     parser.add_argument('--genre_map',default='./data/genre_map.json',\
             type=str,help='genre_map.json path')
     parser.add_argument('--random',action='store_true',help='whether to random user goal')
+    parser.add_argument('--stdin',default=False,action='store_true',help='verbose')
+    parser.add_argument('--auto_test',default=False,action='store_true',help='verbose')
     parser.add_argument('-v',dest='verbose',default=False,action='store_true',help='verbose')
     args = parser.parse_args()
     return args
@@ -37,7 +39,7 @@ class Manager():
         #slot to fill for each action
         self.intent_slot_dict = {'search':['artist','track'],'recommend':['artist','track','genre'],'info':['track','artist']}
         self.slot_prob_map = ['PAD','UNK',None,'track','artist','genre']
-        self.positive_response = [u'是的',u'對',u'對啊',u'恩',u'沒錯']
+        self.positive_response = [u'是的',u'對',u'對啊',u'恩',u'沒錯',u'是啊']
         self.negative_response = [u'不是',u'錯了',u'不對']
         #action threshold:
         self.intent_upper_threshold = 1.9
@@ -71,9 +73,9 @@ class Manager():
         print('NLU_RESULT:',self.NLU_result)
 
         self.state_tracking()
-        self.action_maker()
+        action = self.action_maker()
 
-        return self.action_history[-1]
+        return action
 
     def api_action(self):
         # TODO add rule-based if else
@@ -145,17 +147,23 @@ class Manager():
                 cur_action = {'action':'question','intent':''}
 
         if len(cur_action)==0:
-            self.turn_end = True
+            self.tdialogue_end = True
         """ make action when the current turn ended
             API response should be wrote here
         """
-        if self.turn_end:
+        if self.dialogue_end:
+            cur_action = {'intent':'','slot':{}}
             if self.confirmed_state['intent']=='search':
                 cur_action['action'] = 'response'
             elif self.confirmed_state['intent']=='info':
                 cur_action['action'] = 'info'
             elif self.confirmed_state['intent']=='recommend':
-                cur_action['action'] = 'response'
+                cur_action['action'] = 'info'
+            cur_action['intent'] = self.confirmed_state['intent']
+            for slot_name in self.intent_slot_dict[cur_action['intent']]:
+                if self.confirmed_state['slot'][slot_name]!=-1 and self.confirmed_state['slot'][slot_name]!=None:
+                    cur_action['slot'][slot_name] = self.confirmed_state['slot'][slot_name]
+            print(cur_action)
             self.action_history.append(cur_action)
             return cur_action
 
@@ -167,14 +175,14 @@ class Manager():
 
 
     def state_init(self):
-        """ initialize state: state is depending on state and action and turn_end
+        """ initialize state: state is depending on state and action and dialogue_end
             state_intent:
         """
         self.state = {'intent':{'search':0.0,'recommend':0.0,'info':0.0},'slot':{'track':{},'artist':{},'genre':{}},'turn':0}
         #'slot' = {'slot_name':{'slot_value':[prob]}}
         self.confirmed_state = {'intent':None,'slot':{'artist':None,'track':None,'genre':None}}
         self.action_history = []
-        self.turn_end = False
+        self.dialogue_end = False
         self.cycle_num = 0 
 
 
@@ -187,9 +195,9 @@ class Manager():
 
         #if system have confirm intent value
         if self.confirmed_state['intent']:
-            if last_action['action'] == 'question' and (u'不是' or u'錯了' or u'不對') in self.in_sent:
+            if last_action['action'] == 'question' and any(e in self.in_sent for e in self.negative_response):
                 for slot_name in last_action['slot']:
-                    self.confirmed_state['slot'][slot_name][last_action['slot'][slot_name]] = -1.0
+                    self.confirmed_state['slot'][slot_name] = -1.0
 
 
             elif last_action['action'] == 'confirm':
@@ -257,28 +265,29 @@ class Manager():
                 if not self.confirmed_state['slot'][slot_name]:
                     all_slot_filled = False
 
-        #print('max_slot:',self.max_slot)
+        print('max_slot:',self.max_slot)
         if self.confirmed_state['intent'] and all_slot_filled or self.cycle_num>=self.max_cycle_num:
-            self.turn_end = True
+            self.dialogue_end = True
         self.cycle_num += 1
     
 
     def print_current_state(self):
-        print('uncertained state:')
-        print('uncertained intent: ',end='')
+        print('distribution state:')
+        print('distribution intent: ',end='')
         for e in self.state['intent']:
             print(' ',end='')
             print(e,end='')
             print(': ',self.state['intent'][e],end='')
         print()
-        print('uncertained slot: ',end='')
+        print('distribution slot: ',end='')
         for e in self.state['slot']:
             if len(self.state['slot'][e])!=0:
                 print(e,end='')
                 for e2 in self.state['slot'][e]:
                     print(' ',end='')
                     print(e2,end='')
-                    print(': ',self.state['slot'][e][e2],end='')
+                    print(':',self.state['slot'][e][e2],end='')
+                    print(' ',end='')
         print('\n')
         print('confirmed state:')
         print('confirmed intent:',self.confirmed_state['intent'])
@@ -291,21 +300,19 @@ class Manager():
         print('action:',end='')
         print(self.action_history[-1]['action'])
         if 'intent' in self.action_history[-1]:
-            print('intent:',self.action_history[-1]['intent'],end='')
+            print('action intent:',self.action_history[-1]['intent'],end=' \n')
         if 'slot' in self.action_history[-1]:
-            print(' slot:',end='')
+            print('action slot:',end='')
             for e in self.action_history[-1]['slot']:
-                print(' '+e,end='')
+                print(' '+e+':',end='')
                 print(self.action_history[-1]['slot'][e],end='')
-
-        print('\nturn_end!!\n\n')
-
+        print('\n\n\n')
 
 
-def main():
-    args = optParser()
+
+def test(args):
+    
     DM = Manager(args.nlu_data , args.model, args.genre_map, verbose=args.verbose)
-
     #initialize user simulator:
     simulator = Simulator(args.template_dir, args.data, args.genre)
     simulator.set_user_goal(intent='search',artist=u'林俊傑',track=u'她說')
@@ -315,17 +322,66 @@ def main():
     while True:
         action = DM.get_input(sentence)
         DM.print_current_state()
-        """
-        print('state:',DM.state)
-        print('confirmed_state:',DM.confirmed_state)
-        print('action:',action,'\n\n')
-        """
         sentence = simulator.user_response(action)
-        if DM.turn_end:
-            print('Congratulation!!! You have ended dialogue successfully')
+        if DM.dialogue_end:
+            print('\nCongratulation!!! You have ended one dialogue successfully\n')
+            self.state_init()
             break
 
+def set_simulator_goal(simulator):
+    intent_slot_dict = {'search':['artist','track'],'recommend':['artist','track','genre'],'info':['track','artist']}
+    print('Please enter user intent\n>',end='')
+    intent = sys.stdin.readline()
+    intent = intent.strip()
+    slot_dict = {'artist':None,'genre':None,'track':None}
+    for slot_name in intent_slot_dict[intent]:
+        print('Please enter ' + slot_name + '\n>',end='')
+        slot_value = sys.stdin.readline()
+        slot_value = slot_value.strip().decode('utf-8')
+        if len(slot_value) <= 1:
+            slot_dict[slot_name]= None
+        else:
+            slot_dict[slot_name] = slot_value
+    simulator.set_user_goal(intent=intent,artist=slot_dict['artist'],track=slot_dict['track'],genre=slot_dict['genre'])
+    simulator.print_cur_user_goal()
+    sentence = simulator.user_response({'action':'question'})
+    return sentence
 
+def auto_test(args):
+    
+    DM = Manager(args.nlu_data , args.model, args.genre_map, verbose=args.verbose)
+    #initialize user simulator:
+    simulator = Simulator(args.template_dir, args.data, args.genre)
+    sentence = set_simulator_goal(simulator)
+    while True:
+        action = DM.get_input(sentence)
+        DM.print_current_state()
+        sentence = simulator.user_response(action)
+        if DM.dialogue_end:
+            print('\nCongratulation!!! You have ended one dialogue successfully\n')
+            DM.state_init()
+            sentence = set_simulator_goal(simulator)
+            
+
+def stdin_test(args):
+
+    DM = Manager(args.nlu_data , args.model, args.genre_map, verbose=args.verbose)
+
+    while True:
+        print('\n>',end='')
+        sentence = sys.stdin.readline()
+        sentence = sentence.decode('utf-8').strip()
+        action = DM.get_input(sentence)
+        DM.print_current_state()
+        if DM.dialogue_end:
+            print('\nCongratulation!!! You have ended one dialogue successfully\n')
+            DM.state_init()
         
 if __name__ == '__main__':
-    main()
+    args = optParser()
+    if args.stdin:
+        stdin_test(args)
+    elif args.auto_test:
+        auto_test(args)
+    else:
+        test(args)
