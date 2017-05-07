@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
 import numpy as np
 import pandas as pd
 import argparse
@@ -81,7 +82,7 @@ class Simulator():
 
         if dst_msg is None and not self.dialogue_end:
             ### NOTE: should not happen
-            print '[ERROR] Need DST message...'
+            print ('[ERROR] Need DST message...')
         
         if dst_msg['action'] == 'confirm':
             if 'slot' in dst_msg:
@@ -168,9 +169,9 @@ class Simulator():
 
     def print_cur_user_goal(self):
         # NOTE Debug
-        print u'[DEBUG] intent:[{}], artist:[{}], track:[{}], genre:[{}], reward:[{}], turns:[{}]'.\
+        print (u'[DEBUG] intent:[{}], artist:[{}], track:[{}], genre:[{}], reward:[{}], turns:[{}]'.\
                 format(self.cur_intent, self.cur_slot['artist'],\
-                self.cur_slot['track'], self.cur_slot['genre'], self.cur_reward, self.cur_nb_turn)
+                self.cur_slot['track'], self.cur_slot['genre'], self.cur_reward, self.cur_nb_turn))
 
     def __neg_response(self,slot=set([]),strict=True):
         # TODO
@@ -185,7 +186,7 @@ class Simulator():
 
     def __pos_response(self):
         # TODO
-        responses = [u'是的',u'對', u'恩',u'對阿',u'沒錯']
+        responses = [u'是的',u'對', u'恩',u'對阿',u'沒錯', u'是']
         sent = responses[randrange(len(responses))]
         #print 'Yes! U Asshole!'
         #print sent
@@ -198,7 +199,6 @@ class Simulator():
         for key in self.cur_slot:
             if key not in dst_msg['slot']:
                 dst_msg['slot'][key] = None
-                print key
         
         ### check for each slot and intent if all correct
         if dst_msg['intent'] == self.cur_intent and\
@@ -206,8 +206,9 @@ class Simulator():
             dst_msg['slot']['track'] == self.cur_slot['track'] and\
             dst_msg['slot']['genre'] == self.cur_slot['genre']:
                 self.cur_reward += 1
-        else:
-            self.cur_reward -= 1
+
+       # else:
+       #     self.cur_reward -= 1
 
     def __reset_cur(self):
         self.dialogue_end = True
@@ -262,16 +263,17 @@ class Simulator():
 
 def main(args):
     simulator = Simulator(args.template_dir, args.data, args.genre, intents)
-    simulator.set_user_goal(intent='search',artist=u'郭靖', track=u'分手看看', random=True)
-    simulator.print_cur_user_goal()
+    #simulator.set_user_goal(intent='search',artist=u'郭靖', track=u'分手看看', random=True)
+    #simulator.print_cur_user_goal()
     #sent = simulator.user_response({'action':'confirm','intent':'search','slot':{'track':u'分手看看2','artist':'fuck'}})
     #print sent
 
-    print(u':想要幹麼呢？')
+    #print(u':想要幹麼呢？')
     while True:
         if simulator.dialogue_end:
             print ('')
             print(u':請設定user intent和slots:  [\'intent\',\'artist\',\'track\',\'genre\']')
+            print('<<<',end='')
             input_goal = sys.stdin.readline()
             try:
                 input_goal =  eval(input_goal.decode('utf-8'))
@@ -279,17 +281,22 @@ def main(args):
                 simulator.set_user_goal(intent=input_goal[0], artist=input_goal[1],\
                         track=input_goal[2],genre=input_goal[3])
                 simulator.print_cur_user_goal()
-                print '>>' + simulator.user_response({'action':'question'})
+                print ('>>>' + simulator.user_response({'action':'question'}))
             except:
-                print 'wrong format, should be  [\'intent\',\'artist\',\'track\',\'genre\']'
+                print ('wrong format, should be  [\'intent\',\'artist\',\'track\',\'genre\']')
                 continue
         if simulator.cur_set_goal:
             print ('')
-            print(u':請輸入DM的semantic frame: {"action":"?", "intent":"", "slot":{"artist":""}}')
+            print(u':請輸入DM的action frame: {"action":"?", "intent":"", "slot":{"artist":""}}')
+            print('<<<',end='')
             input_frame = sys.stdin.readline()
-            input_frame = eval(input_frame.decode('utf-8'))
-            sent_res = simulator.user_response(input_frame)
-            print '>>' + sent_res
+            try:
+                input_frame = eval(input_frame.decode('utf-8'))
+                sent_res = simulator.user_response(input_frame)
+                print ('>>>' + sent_res)
+            except:
+                print ('wrong format!!!')
+                continue
 
         if simulator.dialogue_end:
             print ('Dialogue finished!!!')
