@@ -154,15 +154,19 @@ class Manager():
         """
         if self.dialogue_end:
             cur_action = {'intent':'','slot':{}}
+            s = {}
+            for slot_name in self.confirmed_state['slot']:
+                if self.confirmed_state['slot'][slot_name] != None and self.confirmed_state['slot'][slot_name] != -1:
+                    s[slot_name] = self.confirmed_state['slot'][slot_name]
             if self.confirmed_state['intent']=='search':
                 cur_action['action'] = 'response'
-                _,sentence = self.DB.search(self.confirmed_state['slot'])
+                _,sentence = self.DB.search(s)
             elif self.confirmed_state['intent']=='info':
                 cur_action['action'] = 'info'
-                _,sentence = self.DB.info(self.confirmed_state['slot'])
+                _,sentence = self.DB.info(s)
             elif self.confirmed_state['intent']=='recommend':
                 cur_action['action'] = 'info'
-                _,sentence = self.DB.recommend(self.confirmed_state['slot'])
+                _,sentence = self.DB.recommend(s)
             self.dialogue_end_sentence = sentence
             cur_action['intent'] = self.confirmed_state['intent']
             for slot_name in self.confirmed_state['slot']:
@@ -331,6 +335,7 @@ def test(args):
         sentence = simulator.user_response(action)
         if DM.dialogue_end:
             simulator.print_cur_user_goal()
+            print("Dialogue System final response:",end=' ')
             print(DM.dialogue_end_sentence)
             print('\nCongratulation!!! You have ended one dialogue successfully\n')
             DM.state_init()
@@ -367,6 +372,7 @@ def auto_test(args):
         sentence = simulator.user_response(action)
         if DM.dialogue_end:
             simulator.print_cur_user_goal()
+            print("Dialogue System final response:",end=' ')
             print(DM.dialogue_end_sentence)
             print('\nCongratulation!!! You have ended one dialogue successfully\n')
             DM.state_init()
@@ -384,6 +390,7 @@ def stdin_test(args):
         action = DM.get_input(sentence)
         DM.print_current_state()
         if DM.dialogue_end:
+            print("Dialogue System final response:",end=' ')
             print(DM.dialogue_end_sentence)
             print('\nCongratulation!!! You have ended one dialogue successfully\n')
             DM.state_init()
