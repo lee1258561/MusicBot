@@ -43,7 +43,7 @@ class Database():
             sentence = (u'幫你播 ' + items[0]['artists'][0]['name'] + u' 的 ' + items[0]['name'])
         else:
             sentence = (u'Sorry Not Found...')
-        print(sentence)
+        #print(sentence)
         return items, sentence
 
     def info(self, slots):
@@ -65,16 +65,23 @@ class Database():
                 sentence += u' 曲風:'
                 for g in artist['genres']:
                     sentence += g + ', '
-                sentence = sentence[:-2] + ' '
-                sentence += u'專輯:'+ album['name']+u'歌曲:'+tracks[0]
+                sentence = sentence[:-2] + u' 最熱門的歌曲:'
 
-        if 'track' in slots:
+                top_songs = self.__sp.artist_top_tracks(artist['uri'])['tracks']
+                for i,s in enumerate(top_songs):
+                    sentence += u' ' + s['name']
+                    if i >=2:
+                        break
+                #sentence += u'專輯:'+ album['name']+u'歌曲:'+tracks[0]
+                print(sentence)
+
+        elif 'track' in slots:
             items = self.get_track(slots['track'])
             if len(items) > 0:
                 tracks = items[0]
                 infos = {'artist':tracks['artists'][0]['name'],\
                         'album':tracks['album']['name'], 'track':tracks['name']}
-                sentence = (u''+infos['artist']+u' 專輯:'+ infos['album']+u' 歌曲:'+infos['track'])
+                sentence = (u'這是'+infos['artist']+u'的歌曲 專輯:'+ infos['album']+u' 歌曲:'+infos['track'])
 
         return infos, sentence
 
@@ -92,7 +99,7 @@ class Database():
                 seed_tracks = [tracks_get[0]['id']]
         if 'artist' in slots:
             artists_get = self.get_artist(slots['artist'])
-            if len(aritsts_get) > 0:
+            if len(artists_get) > 0:
                seed_artists = [artists_get[0]['id']]
         if 'genre' in slots:
             if slots['genre'] in self.genre_map:
@@ -107,11 +114,17 @@ class Database():
 
 
         if len(items) > 0:  # if items found
-            tracks = [items[i]['name'] for i in range(len(items))]
-            sentence = (u'為你推薦 '+tracks[0]+u' 以及 '+tracks[1]+u' 和 '+tracks[2])
+            sentence = u'為你推薦 '
+            tracks = []
+            for i,track in enumerate(items):
+                sentence += u'' + track['artists'][0]['name'] + u'的' + track['name'] + u'  '
+                tracks.append(track['name'])
+                if i >=3:
+                    break
         else:
             tracks = []
             sentence = (u'No recommended songs...')
+        #print(sentence)
         return tracks, sentence
 
 
