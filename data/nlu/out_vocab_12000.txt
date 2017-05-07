@@ -1,7 +1,0 @@
-_PAD
-_UNK
-0
-t
-s
-a
-g
