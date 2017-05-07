@@ -77,7 +77,9 @@ def opt_parser():
         task['intent'] = 1
         task['tagging'] = 1
         task['joint'] = 1
-
+    return FLAGS
+FLAGS = tf.app.flags.FLAGS
+task = {'intent':1,'tagging':1, 'joint':1}
 _buckets = [(130, 130)]
 #_buckets = [(3, 10), (10, 25)]
 
@@ -206,12 +208,12 @@ def create_model(session, source_vocab_size, target_vocab_size, label_vocab_size
 
 class test_model():
   def __init__(self,data_dir,train_dir,max_sequence_length=130,task='joint'):
-    opt_parse()
+    FLAGS = opt_parser()
     _buckets = [(FLAGS.max_sequence_length, FLAGS.max_sequence_length)]
     FLAGS.data_dir = data_dir
     FLAGS.train_dir = train_dir
     FLAGS.max_sequence_length = max_sequence_length
-    FLAGS.task = task
+    #FLAGS.task = task
     FLAGS.mode = 'test'
 
     print ('Applying Parameters:')
