@@ -193,6 +193,14 @@ class Simulator():
 
     def __reward_calculate(self,dst_msg):
         self.cur_reward = -0.1*self.cur_nb_turn
+
+        ### fill dst_msg with None if the slot not found
+        for key in self.cur_slot:
+            if key not in dst_msg['slot']:
+                dst_msg['slot'][key] = None
+                print key
+        
+        ### check for each slot and intent if all correct
         if dst_msg['intent'] == self.cur_intent and\
             dst_msg['slot']['artist'] == self.cur_slot['artist'] and\
             dst_msg['slot']['track'] == self.cur_slot['track'] and\
@@ -272,7 +280,6 @@ def main(args):
                         track=input_goal[2],genre=input_goal[3])
                 simulator.print_cur_user_goal()
                 print '>>' + simulator.user_response({'action':'question'})
-                simulator.print_cur_user_goal()
             except:
                 print 'wrong format, should be  [\'intent\',\'artist\',\'track\',\'genre\']'
                 continue

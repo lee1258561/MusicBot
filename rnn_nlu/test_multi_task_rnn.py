@@ -28,56 +28,57 @@ from ontology import databaseAPI
 #tf.app.flags.DEFINE_float("learning_rate", 0.1, "Learning rate.")
 #tf.app.flags.DEFINE_float("learning_rate_decay_factor", 0.9,
 #                          "Learning rate decays by this much.")
-tf.app.flags.DEFINE_float("max_gradient_norm", 5.0,
-                          "Clip gradients to this norm.")
-tf.app.flags.DEFINE_integer("batch_size", 16,
-                            "Batch size to use during training.")
-tf.app.flags.DEFINE_integer("size", 128, "Size of each model layer.")
-tf.app.flags.DEFINE_integer("word_embedding_size", 128, "Size of the word embedding")
-tf.app.flags.DEFINE_integer("num_layers", 1, "Number of layers in the model.")
-tf.app.flags.DEFINE_integer("in_vocab_size", 12000, "max vocab Size.")
-tf.app.flags.DEFINE_integer("out_vocab_size", 12000, "max tag vocab Size.")
-tf.app.flags.DEFINE_string("data_dir", "/tmp", "Data directory")
-tf.app.flags.DEFINE_string("train_dir", "/tmp", "Training directory.")
-tf.app.flags.DEFINE_integer("max_train_data_size", 0,
-                            "Limit on the size of training data (0: no limit).")
-tf.app.flags.DEFINE_integer("steps_per_checkpoint", 300,
-                            "How many training steps to do per checkpoint.")
-tf.app.flags.DEFINE_integer("max_training_steps", 10000,
-                            "Max training steps.")
-tf.app.flags.DEFINE_integer("max_test_data_size", 0,
-                            "Max size of test set.")
-tf.app.flags.DEFINE_boolean("use_attention", True,
-                            "Use attention based RNN")
-tf.app.flags.DEFINE_integer("max_sequence_length", 130,
-                            "Max sequence length.")
-tf.app.flags.DEFINE_float("dropout_keep_prob", 0.5,
-                          "dropout keep cell input and output prob.")
-tf.app.flags.DEFINE_boolean("bidirectional_rnn", True,
-                            "Use birectional RNN")
-tf.app.flags.DEFINE_string("task", 'joint', "Options: joint; intent; tagging")
-tf.app.flags.DEFINE_string("mode", "train", "Options: train; test(default: train)")
-FLAGS = tf.app.flags.FLAGS
+def opt_parser():
+    tf.app.flags.DEFINE_float("max_gradient_norm", 5.0,
+                              "Clip gradients to this norm.")
+    tf.app.flags.DEFINE_integer("batch_size", 16,
+                                "Batch size to use during training.")
+    tf.app.flags.DEFINE_integer("size", 128, "Size of each model layer.")
+    tf.app.flags.DEFINE_integer("word_embedding_size", 128, "Size of the word embedding")
+    tf.app.flags.DEFINE_integer("num_layers", 1, "Number of layers in the model.")
+    tf.app.flags.DEFINE_integer("in_vocab_size", 12000, "max vocab Size.")
+    tf.app.flags.DEFINE_integer("out_vocab_size", 12000, "max tag vocab Size.")
+    tf.app.flags.DEFINE_string("data_dir", "/tmp", "Data directory")
+    tf.app.flags.DEFINE_string("train_dir", "/tmp", "Training directory.")
+    tf.app.flags.DEFINE_integer("max_train_data_size", 0,
+                                "Limit on the size of training data (0: no limit).")
+    tf.app.flags.DEFINE_integer("steps_per_checkpoint", 300,
+                                "How many training steps to do per checkpoint.")
+    tf.app.flags.DEFINE_integer("max_training_steps", 10000,
+                                "Max training steps.")
+    tf.app.flags.DEFINE_integer("max_test_data_size", 0,
+                                "Max size of test set.")
+    tf.app.flags.DEFINE_boolean("use_attention", True,
+                                "Use attention based RNN")
+    tf.app.flags.DEFINE_integer("max_sequence_length", 130,
+                                "Max sequence length.")
+    tf.app.flags.DEFINE_float("dropout_keep_prob", 0.5,
+                              "dropout keep cell input and output prob.")
+    tf.app.flags.DEFINE_boolean("bidirectional_rnn", True,
+                                "Use birectional RNN")
+    tf.app.flags.DEFINE_string("task", 'joint', "Options: joint; intent; tagging")
+    tf.app.flags.DEFINE_string("mode", "train", "Options: train; test(default: train)")
+    FLAGS = tf.app.flags.FLAGS
 
-if FLAGS.max_sequence_length == 0:
-    print ('Please indicate max sequence length. Exit')
-    sys.exit(1)
+    if FLAGS.max_sequence_length == 0:
+        print ('Please indicate max sequence length. Exit')
+        sys.exit(1)
 
-if FLAGS.task is None:
-    print ('Please indicate task to run. Available options: intent; tagging; joint')
-    sys.exit(1)
+    if FLAGS.task is None:
+        print ('Please indicate task to run. Available options: intent; tagging; joint')
+        sys.exit(1)
 
-task = dict({'intent':0, 'tagging':0, 'joint':0})
-if FLAGS.task == 'intent':
-    task['intent'] = 1
-elif FLAGS.task == 'tagging':
-    task['tagging'] = 1
-elif FLAGS.task == 'joint':
-    task['intent'] = 1
-    task['tagging'] = 1
-    task['joint'] = 1
+    task = dict({'intent':0, 'tagging':0, 'joint':0})
+    if FLAGS.task == 'intent':
+        task['intent'] = 1
+    elif FLAGS.task == 'tagging':
+        task['tagging'] = 1
+    elif FLAGS.task == 'joint':
+        task['intent'] = 1
+        task['tagging'] = 1
+        task['joint'] = 1
 
-_buckets = [(FLAGS.max_sequence_length, FLAGS.max_sequence_length)]
+_buckets = [(130, 130)]
 #_buckets = [(3, 10), (10, 25)]
 
 # metrics function using conlleval.pl
@@ -205,6 +206,8 @@ def create_model(session, source_vocab_size, target_vocab_size, label_vocab_size
 
 class test_model():
   def __init__(self,data_dir,train_dir,max_sequence_length=130,task='joint'):
+    opt_parse()
+    _buckets = [(FLAGS.max_sequence_length, FLAGS.max_sequence_length)]
     FLAGS.data_dir = data_dir
     FLAGS.train_dir = train_dir
     FLAGS.max_sequence_length = max_sequence_length
