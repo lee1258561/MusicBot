@@ -266,7 +266,7 @@ def main(args):
             print(u':請設定user intent和slots:  [\'intent\',\'artist\',\'track\',\'genre\']')
             input_goal = sys.stdin.readline()
             try:
-                input_goal =  eval(input_goal)
+                input_goal =  eval(input_goal.decode('utf-8'))
                 input_goal = [ g if len(g) > 0 else None for g in input_goal]
                 simulator.set_user_goal(intent=input_goal[0], artist=input_goal[1],\
                         track=input_goal[2],genre=input_goal[3])
@@ -280,9 +280,10 @@ def main(args):
             print ('')
             print(u':請輸入DM的semantic frame: {"action":"?", "intent":"", "slot":{"artist":""}}')
             input_frame = sys.stdin.readline()
-            input_frame = eval(input_frame)
+            input_frame = eval(input_frame.decode('utf-8'))
             sent_res = simulator.user_response(input_frame)
             print '>>' + sent_res
+
         if simulator.dialogue_end:
             print ('Dialogue finished!!!')
             simulator.print_cur_user_goal()
