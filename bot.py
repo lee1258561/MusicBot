@@ -3,16 +3,20 @@ import fbchat
 
 from rnn_nlu import run_multi_task_rnn, data_utils
 from ontology import databaseAPI
-#subclass fbchat.Client and override required methods
+from Dialogue_Manager import Manager, optParser
+
 class fbBot(fbchat.Client):
-    def __init__(self,email, password, debug=True, user_agent=None):
+    def __init__(self,email, password, debug=True, user_agent=None, args):
         fbchat.Client.__init__(self,email, password, debug, user_agent)
 
-        print('NLU initializing...')
-        self.NLU = run_multi_task_rnn.NLU_test()
+        #print('NLU initializing...')
+        #self.NLU = run_multi_task_rnn.NLU_test()
 
-        print('database initializing...')
-        self.db = databaseAPI.Database('./data/genre_map.json')
+        #print('database initializing...')
+        #self.db = databaseAPI.Database('./data/genre_map.json')
+
+        print('Dialogue_Manager initializing...')
+        self.DM = Manager(args.nlu_data, args.model, args.genre_map, verbose=args.verbose)
 
     def on_message(self, mid, author_id, author_name, message, metadata):
         self.markAsDelivered(author_id, mid) #mark delivered
@@ -26,6 +30,7 @@ class fbBot(fbchat.Client):
             ID = metadata['delta']['messageMetadata']['threadKey']['threadFbId']
         #if you are not the author, echo
         if str(author_id) != str(self.uid) and ID == None:
+            '''
             intent, pos = self.NLU.feed_sentence(message)
             print(intent, pos)
             slot = databaseAPI.build_slot(data_utils.naive_seg(message), pos)
@@ -38,8 +43,14 @@ class fbBot(fbchat.Client):
                 info, sentence = self.db.info(slot)
             elif 'neutral' in intent:
                 sentence = (u'可以說清楚些嗎？')
-
+            '''
+            sentence = self.DM.get_API_input(message)
+            print("=============")
+            print("system response: %s" % sentence)
+            print("=============")
             self.send(author_id,sentence)
 
-bot = fbBot("cotapocil@1rentcar.top", "silencefarmer")
-bot.listen()
+if __name__ == '__main__':
+    args = optParser()
+    bot = fbBot("cotapocil@1rentcar.top", "silencefarmer", args)
+    bot.listen()
