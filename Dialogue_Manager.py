@@ -39,7 +39,7 @@ class Manager():
         #slot to fill for each action
         self.intent_slot_dict = {'search':['artist','track'],'recommend':['artist','track','genre'],'info':['track','artist']}
         self.slot_prob_map = ['PAD','UNK',None,'track','artist','genre']
-        self.positive_response = [u'是的',u'對',u'對啊',u'恩',u'沒錯',u'是啊',u'就是這樣',u'你真聰明',u'是']
+        self.positive_response = [u'是的',u'對',u'對啊',u'恩',u'沒錯',u'是啊',u'就是這樣',u'你真聰明',u'是',u'有',u'好啊']
         self.negative_response = [u'不是',u'錯了',u'不對',u'不用',u'沒有',u'算了',u'不需要',u'不 ',u'否',u'錯']
         #action threshold:
         self.intent_upper_threshold = 1.9
@@ -78,13 +78,7 @@ class Manager():
 
         return action
 
-    def api_action(self):
-        # TODO add rule-based if else
-        slot = databaseAPI.build_slot(self.in_sent_seg, self.in_pos)
-        if 'search' in self.in_intent and len(slot) > 0:
-            self.DB.given(slot)
-        else:
-            print ('Not supported yet...')
+
 
     def update_state_with_NLU(self,target=None,last_action_delete=None):
         """ Use the NLU result to update current state
@@ -318,6 +312,39 @@ class Manager():
                 print(self.action_history[-1]['slot'][e],end='')
         print('\n\n\n')
 
+ 
+    def action_to_sentence(self,action):
+        intent_to_chinese = {'search':u'聽歌','recommend':u'推薦歌曲', 'info':u'詢問歌曲資訊'}
+        slot_to_chinese = {'artist':u'歌手名稱','track':u'歌曲名稱','genre':u'曲風'}
+        if action['action']=='question':
+            if 'intent' in action:
+                return u'你好啊，請問你想要什麼服務'
+            elif 'slot' in action:
+                for slot_name in action['slot']:
+                    return u'請問你是否要填入' + slot_to_chinese[slot_name] + u'嗎?'
+
+        elif action['action'] == 'confirm':
+            if 'intent' in action:
+                return u'再確認一次 請問你是想' + intent_to_chinese[action['intent']] + u'嗎?'
+            elif 'slot' in action:
+                sent = u'再確認一次 請問你是否曾填入'
+                for slot_name in action['slot']:
+                    sent = sent + slot_to_chinese[slot_name] + action['slot'][slot_name] + u'，'
+                sent = sent + u'嗎?'
+                return sent
+
+
+
+    def get_API_input(self,sentence):
+
+        sentence = sentence.decode('utf-8').strip()
+        action = self.get_input(sentence)
+        self.print_current_state()
+        if self.dialogue_end:
+            return ("Dialogue System final response:" + DM.dialogue_end_sentence + "\n")
+            self.state_init()
+        return self.action_to_sentence(action)
+
 
 
 def test(args):
@@ -392,12 +419,14 @@ def stdin_test(args):
         sentence = sentence.decode('utf-8').strip()
         action = DM.get_input(sentence)
         DM.print_current_state()
+        print(DM.action_to_sentence(action))
         if DM.dialogue_end:
             print("Dialogue System final response:",end=' ')
             print(DM.dialogue_end_sentence)
             print('\nCongratulation!!! You have ended one dialogue successfully\n')
             DM.state_init()
-        
+    
+
 if __name__ == '__main__':
     args = optParser()
     if args.stdin:
