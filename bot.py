@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 import fbchat
 
-from rnn_nlu import run_multi_task_rnn, data_utils
-from ontology import databaseAPI
 from Dialogue_Manager import Manager, optParser
 
 class fbBot(fbchat.Client):
-    def __init__(self,email, password, debug=True, user_agent=None, args):
+    def __init__(self, email, password, args, debug=True, user_agent=None):
         fbchat.Client.__init__(self,email, password, debug, user_agent)
 
         #print('NLU initializing...')
@@ -22,7 +20,7 @@ class fbBot(fbchat.Client):
         self.markAsDelivered(author_id, mid) #mark delivered
         self.markAsRead(author_id) #mark read
         print('======metadata======')
-        print(metadata)
+        #print(metadata)
 
         print("%s said: %s"%(author_id, message))
         ID = None
@@ -30,6 +28,11 @@ class fbBot(fbchat.Client):
             ID = metadata['delta']['messageMetadata']['threadKey']['threadFbId']
         #if you are not the author, echo
         if str(author_id) != str(self.uid) and ID == None:
+            try:
+                message = message.decode('utf-8')
+            except UnicodeError:
+                pass
+
             '''
             intent, pos = self.NLU.feed_sentence(message)
             print(intent, pos)

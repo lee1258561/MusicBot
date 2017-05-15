@@ -337,12 +337,13 @@ class Manager():
 
     def get_API_input(self,sentence):
 
-        sentence = sentence.decode('utf-8').strip()
+        sentence = sentence.strip()
         action = self.get_input(sentence)
         self.print_current_state()
         if self.dialogue_end:
-            return ("Dialogue System final response:" + DM.dialogue_end_sentence + "\n")
+            sentence = ("Dialogue System final response:" + self.dialogue_end_sentence + "\n")
             self.state_init()
+            return sentence
         return self.action_to_sentence(action)
 
 
