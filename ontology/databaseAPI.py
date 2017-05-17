@@ -74,6 +74,9 @@ class Database():
                         break
                 #sentence += u'專輯:'+ album['name']+u'歌曲:'+tracks[0]
                 print(sentence)
+            else:
+                sentence = (u'Sorry Not Found...')
+                infos = {}
 
         elif 'track' in slots:
             items = self.get_track(slots['track'])
@@ -82,6 +85,9 @@ class Database():
                 infos = {'artist':tracks['artists'][0]['name'],\
                         'album':tracks['album']['name'], 'track':tracks['name']}
                 sentence = (u'這是'+infos['artist']+u'的歌曲 專輯:'+ infos['album']+u' 歌曲:'+infos['track'])
+            else:
+                sentence = (u'Sorry Not Found...')
+                infos = {}
 
         return infos, sentence
 
@@ -133,7 +139,7 @@ class Database():
         results = self.__sp.album_tracks(album['id'])
         tracks.extend(results['items'])
         while results['next']:
-            results = sp.next(results)
+            results = self.__sp.next(results)
             tracks.extend(results['items'])
         
         return tracks

@@ -5,6 +5,9 @@ import pandas as pd
 import argparse
 import json
 import sys
+import re
+import string
+import random
 
 from utils import io_utils
 from random import randrange, shuffle
@@ -26,12 +29,18 @@ def opt_parse():
             help='artist-album-track json data')
     parser.add_argument('--genre',default='./data/genres.json',\
             help='genres')
+    parser.add_argument('--genre_map',default='./data/genre_map.json',\
+            type=str,help='genre_map.json path')
+    parser.add_argument('--nlu_data', default='./data/nlu_data/',type=str, help='data dir')
+    parser.add_argument('--model',default='./model_tmp/',type=str,help='model dir')
+    parser.add_argument('--mode',default='test_dst', type=str, help='stdin|tests_dst')
+    parser.add_argument('-v',dest='verbose',default=False,action='store_true',help='verbose')
     args = parser.parse_args()
     return args
 
 class Simulator():
-    def __init__(self, template_dir, data_path, genre_path, intents=intents):
-        self.data = self.__load_data(template_dir, data_path, genre_path)
+    def __init__(self, template_dir, data_path, genre_path, genre_map_path, intents=intents):
+        self.data = self.__load_data(template_dir, data_path, genre_path, genre_map_path)
         self.intents = intents[:3]
         self.prefix_pos_responses = [u'是的',u'對', u'恩',u'對阿',u'沒錯', u'是']
         self.prefix_neg_responses = [u'不是 ',u'錯了 ', u'不對 ']
@@ -45,8 +54,8 @@ class Simulator():
         self.cur_success = False
         self.cur_slots_all = set()
 
-    def set_user_goal(self, intent=None, artist=None, track=None, genre=None, random=False):
-        ''' set the current user goal. manually init each slot or random init
+    def set_user_goal(self, intent=None, artist=None, track=None, genre=None, random_init=False):
+        ''' set the current user goal. manually init each slot or random_init
         '''
         self.__reset_cur()
 
@@ -58,25 +67,39 @@ class Simulator():
             self.cur_slot['genre'] = genre
 
         ### if random init
-        if random:
+        if random_init:
+            # remove punctuation
+            #regex = re.compile('[%s]' % re.escape(string.punctuation))
             self.cur_intent = self.__rand(self.intents)
             self.cur_slot['track'] = self.__rand(self.data['tracks'])
             self.cur_slot['artist'] =  self.data['track_artist_map'][self.cur_slot['track']]
             ### TODO: random init genre as well
+            if self.cur_intent == 'recommend':
+                self.cur_slot['genre'] = self.__rand(self.data['genres'])
+            if self.cur_intent == 'info':
+                if random.random() > 0.5:
+                    self.cur_slot['track'] = None
+                else:
+                    self.cur_slot['artist'] = None
 
         ### all the possible slots set based on current intent
         self.cur_slots_all = set([s for s in self.cur_slot if self.cur_slot[s] is not None]) 
         self.cur_templates = self.data['intent_template_map'][self.cur_intent] # use the current intent template
         self.cur_set_goal = True
 
-    def user_response(self, dst_msg=None):
+    def user_response(self, dst_msg=None, start=False):
         ''' Given DST message, return user response
             Arguments:
                 dst_msg: DST message. {'action':'confirm|question|response|info',\
                             'intent':'', 'slot':{'slot_name':'value'}}
+                start: user start the conversation(equal to get dst_msg{'action':'question'})
             Return:
                 sent: string, user response
         '''
+        # if user start the conversation
+        if start:
+            dst_msg = {'action':'question'}
+
         ### init
         self.dialogue_end = False
         self.cur_nb_turn += 1
@@ -137,6 +160,7 @@ class Simulator():
 
     def __fill_slot(self, template):
         #new_temp = io_utils.naive_seg(template)
+        self.cur_state['intent'] = self.cur_intent # For DST state accuracy computing
         new_temp = template
         for key in tokens:
             if key in new_temp:
@@ -145,7 +169,12 @@ class Simulator():
                 #slot_content = io_utils.naive_seg(self.cur_slot[token_slot_map[key]])
                 slot_content= self.cur_slot[token_slot_map[key]]
                 new_temp = new_temp[:offset] + slot_content + new_temp[offset+3:]
+
+                # For dst cur state accuracy computing
+                self.cur_state['slot'][token_slot_map[key]] = self.cur_slot[token_slot_map[key]]
+
         return new_temp
+
 
     def print_cur_user_goal(self):
         # NOTE Debug
@@ -153,6 +182,26 @@ class Simulator():
                 format(self.cur_intent, self.cur_slot['artist'],\
                 self.cur_slot['track'], self.cur_slot['genre'],\
                 self.cur_reward, self.cur_nb_turn, self.cur_success))
+
+
+    def dst_cur_state_check(self, dst_confirmed_state):
+        ''' Check if DST current state is correct'''
+        print(dst_confirmed_state)
+        for key in self.cur_slot:
+            if type(dst_confirmed_state['slot'][key]) is float:
+                dst_confirmed_state['slot'][key] = None
+            if dst_confirmed_state['slot'][key] is not None:
+                dst_confirmed_state['slot'][key] = dst_confirmed_state['slot'][key].replace(' ','')
+            if self.cur_state['slot'][key] is not None:
+                self.cur_state['slot'][key] = self.cur_state['slot'][key].replace(' ','')
+
+        ### check for each slot and intent if all correct
+        if dst_confirmed_state['intent'] == self.cur_state['intent'] and\
+            dst_confirmed_state['slot']['artist'] == self.cur_state['slot']['artist'] and\
+            dst_confirmed_state['slot']['track'] == self.cur_state['slot']['track'] and\
+            dst_confirmed_state['slot']['genre'] == self.cur_state['slot']['genre']:
+                return True
+
 
     def __confirm(self, dst_msg, slots_asked, intent_asked):
         sent = ''
@@ -163,7 +212,8 @@ class Simulator():
                 slots_asked.clear() # clear all the elements
                 for key in dst_msg['slot']: # check if each slot DTW returned is correct
                     ### add incorrect slots to slots_asked, then generate neg_response
-                    if self.cur_slot[key] != dst_msg['slot'][key]:
+                    # NOTE compare with no space
+                    if self.cur_slot[key].replace(' ','') != dst_msg['slot'][key].replace(' ',''):
                         slots_asked.add(key)
                 if len(slots_asked) > 0:
                     sent = self.__neg_response(slot=slots_asked,strict=False)
@@ -207,7 +257,14 @@ class Simulator():
         for key in self.cur_slot:
             if key not in dst_msg['slot']:
                 dst_msg['slot'][key] = None
-        
+
+        # XXX: remove space
+        for key in self.cur_slot:
+            if dst_msg['slot'][key] is not None:
+                dst_msg['slot'][key] = dst_msg['slot'][key].replace(' ','')
+            if self.cur_slot[key] is not None:
+                self.cur_slot[key] = self.cur_slot[key].replace(' ','')
+
         ### check for each slot and intent if all correct
         if dst_msg['intent'] == self.cur_intent and\
             dst_msg['slot']['artist'] == self.cur_slot['artist'] and\
@@ -221,6 +278,8 @@ class Simulator():
 
     def __reset_cur(self):
         self.dialogue_end = True
+        # For DST state accuracy computing
+        self.cur_state = {'intent':None,'slot':{'track':None,'artist':None, 'genre':None}}
         self.cur_intent = ''
         self.cur_slot = {}
         self.cur_nb_turn = -1
@@ -231,7 +290,7 @@ class Simulator():
     def __rand(self, data_lists):
         return data_lists[randrange(len(data_lists))]
 
-    def __load_data(self,template_dir, data_path, genre_path):
+    def __load_data(self,template_dir, data_path, genre_path, genre_map_path):
         '''
             Load templates and all the slot data
             Arguments: 
@@ -251,8 +310,15 @@ class Simulator():
             data_artist = json.load(f)
         with open(genre_path,'r') as f:
             genres=json.load(f)
+        with open(genre_map_path,'r') as f:
+            genre_map =json.load(f)
 
+        # build genres
+        genres = [ key for key in genre_map ] # genre_map: {chinese_genre:english_genre}
+
+        # load artists
         artists = [s for s in data_artist]
+        # load tracks and track_artist mappig
         tracks = []
         track_artist_map = {}
         for s in data_artist:
@@ -260,6 +326,7 @@ class Simulator():
                 for t in data_artist[s][a]:
                     track_artist_map[t] = s
                     tracks.append(t)
+        # load intent templates
         intent_template_map = {}
         for i in intents:
             intent_template_map[i] = []
@@ -312,6 +379,53 @@ def main(args):
             print ('Dialogue finished!!!')
             simulator.print_cur_user_goal()
 
+def test_DST(args):
+    import Dialogue_Manager
+    US = Simulator(args.template_dir, args.data, args.genre, args.genre_map, intents)
+    US.set_user_goal(random_init=True)
+    US.print_cur_user_goal()
+    user_sent = US.user_response(start=True)
+    
+    DM = Dialogue_Manager.Manager(args.nlu_data , args.model, args.genre, verbose=args.verbose)
+    c_each_turn =  0.
+    nb_turn = 0.
+    c_final_turn = 0.
+    nb_final_turn = 0.
+    count = 0
+    while True:
+        nb_turn += 1
+        action = DM.get_input(user_sent)
+        print ('?????',DM.confirmed_state)
+        if US.dst_cur_state_check(DM.confirmed_state):
+            c_each_turn += 1
+        DM.print_current_state()
+        user_sent = US.user_response(action)
+        print (user_sent)
+        if DM.dialogue_end:
+            count += 1
+            US.print_cur_user_goal()
+            nb_final_turn += 1
+            if US.cur_success:
+                c_final_turn += 1
+            print("Dialogue System final response:",end=' ')
+            print(DM.dialogue_end_sentence)
+            print('\nCongratulation!!! You have ended one dialogue successfully\n')
+            
+            print ('ACC turn:[{:f}]  ACC final:[{}] AVG turns:[{}]'.format(c_each_turn/nb_turn,
+                c_final_turn/nb_final_turn, nb_turn/nb_final_turn))
+            if count > 10000:
+                break
+
+            DM.state_init()
+            US.set_user_goal(random_init=True)
+            US.print_cur_user_goal()
+            user_sent = US.user_response(start=True)
+    
+
+
 if __name__ == '__main__':
     args = opt_parse()
-    main(args)
+    if args.mode == 'stdin':
+        main(args)
+    elif args.mode == 'test_dst':
+        test_DST(args)
