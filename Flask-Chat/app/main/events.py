@@ -78,7 +78,9 @@ def slot(message):
     while True:
         action = DM.get_input(sent)
         DM.print_current_state()
-        emit('message', {'msg': 'Music Bot: ' + DM.action_to_sentence(action)}, room=room)
+        DM_response = DM.action_to_sentence(action)
+        if DM_response is not None:
+            emit('message', {'msg': 'Music Bot: ' + DM_response}, room=room)
         sent = simulator.user_response(action)
         emit('message', {'msg': session.get('name') + ': ' + sent}, room=room)
         if DM.dialogue_end:
