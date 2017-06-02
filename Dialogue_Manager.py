@@ -40,7 +40,7 @@ class Manager():
         self.intent_slot_dict = {'search':['artist','track'],'recommend':['artist','track','genre'],'info':['track','artist']}
         self.slot_prob_map = ['PAD','UNK',None,'track','artist','genre']
         self.positive_response = [u'是的',u'對',u'對啊',u'恩',u'沒錯',u'是啊',u'就是這樣',u'你真聰明',u'是',u'有',u'好啊']
-        self.negative_response = [u'不是',u'錯了',u'不對',u'不用',u'沒有',u'算了',u'不需要',u'不 ',u'否',u'錯']
+        self.negative_response = [u'不是',u'錯了',u'不對',u'不用',u'沒有',u'算了',u'不需要',u'不 ',u'否']
         #action threshold:
         self.intent_upper_threshold = 1.9
         self.intent_lower_threshold = 0.95
@@ -57,7 +57,7 @@ class Manager():
     def get_input(self,sentence):
         self.in_sent = sentence
 
-        sentence = re.sub(u'就這樣|是的|對啊|對|恩|沒錯|不是|錯了|不對','',sentence)
+        sentence = re.sub(u'就這樣|是的|對啊|對|恩|沒錯|不是|錯了|不對','',sentence[:3]) + sentence[3:]
         print("CURRENT TURN START!!!!!!")
         print('input:',self.in_sent)
         print('NLU_input:',sentence)
