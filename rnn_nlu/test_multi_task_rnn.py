@@ -288,7 +288,9 @@ class test_model():
                     begin = False
                 else:
                     #key = "".join(self.rev_vocab[ids] for ids in token_ids[start_i:i])
-                    key = ''.join(sentence_seg[start_i:i])
+                    key = [w + ' ' if not u'\u4e00' <= w <= u'\u9fff' else w
+                           for w in sentence_seg[start_i:i]]
+                    key = ''.join(key).strip()
                     geo_avg = prob_tmp ** (1/(i-start_i))
                     tag_dict[key] = geo_avg / np.sum(geo_avg)
                     begin = True
@@ -298,10 +300,12 @@ class test_model():
 
     if not begin:
         #key = "".join(self.rev_vocab[ids] for ids in token_ids[start_i:])
-        key = ''.join(sentence_seg[start_i:])
+        key = [w + ' ' if not u'\u4e00' <= w <= u'\u9fff' else w
+               for w in sentence_seg[start_i:i+1]]
+        key = ''.join(key).strip()
         geo_avg = prob_tmp ** (1/(i+1-start_i))
         tag_dict[key] = geo_avg / np.sum(geo_avg)
- 
+
     return {'intent': classification_dict, 'slot': tag_dict}
 
 def main(_):
