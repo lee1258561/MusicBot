@@ -49,13 +49,18 @@ def text(message):
     room = session.get('room')
     sent = message['msg']
     emit('message', {'msg': session.get('name') + ': ' + sent}, room=room)
+    
     action = DM.get_input(sent)
-    DM.print_current_state()
-    emit('message', {'msg': 'Music Bot: ' + DM.action_to_sentence(action)}, room=room)
+    DM.print_current_state() # Debug
+
+    DM_response = DM.action_to_sentence(action)
+    if DM_response is not None:
+        emit('message', {'msg': 'Music Bot: ' + DM.action_to_sentence(action)}, room=room)
     if DM.dialogue_end:
         emit('message', {'msg': 'Music Bot: Dialogue System final response: ' + DM.dialogue_end_sentence}, room=room)
         print('\nCongratulation!!! You have ended one dialogue successfully\n')
         DM.state_init()
+    
 
 
 @socketio.on('slot', namespace='/chat')
@@ -69,6 +74,7 @@ def slot(message):
     simulator.print_cur_user_goal()
     sent = simulator.user_response({'action':'question'})
     emit('message', {'msg': session.get('name') + ': ' + sent}, room=room)
+    
     while True:
         action = DM.get_input(sent)
         DM.print_current_state()
@@ -80,6 +86,7 @@ def slot(message):
             print('\nCongratulation!!! You have ended one dialogue successfully\n')
             DM.state_init()
             break
+    
 
 
 @socketio.on('left', namespace='/chat')
