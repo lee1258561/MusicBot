@@ -33,7 +33,7 @@ def opt_parse():
             type=str,help='genre_map.json path')
     parser.add_argument('--nlu_data', default='./data/nlu_data/',type=str, help='data dir')
     parser.add_argument('--model',default='./model_tmp/',type=str,help='model dir')
-    parser.add_argument('--mode',default='test_dst', type=str, help='stdin|tests_dst')
+    parser.add_argument('--mode',default='test_dst', type=str, help='stdin|test_dst')
     parser.add_argument('-v',dest='verbose',default=False,action='store_true',help='verbose')
     args = parser.parse_args()
     return args
@@ -50,7 +50,7 @@ class Simulator():
         self.cur_intent = ''
         self.cur_slot = {}
         self.cur_nb_turn = -1 # simulator started by receive an init question
-        self.cur_reward = 0.
+        self.cur_reward = 0. # cumulated reward
         self.cur_success = False
         self.cur_slots_all = set()
 
@@ -157,6 +157,16 @@ class Simulator():
                     sent = self.__fill_slot(t)
                     break
         return sent
+
+
+    def get_reward(self):
+        ''' Return current reward
+            can only be called after user_response()
+        '''
+        value = -0.1
+        if self.cur_success:
+            value += 1
+        return value
 
     def __fill_slot(self, template):
         #new_temp = io_utils.naive_seg(template)
@@ -401,6 +411,7 @@ def test_DST(args):
         DM.print_current_state()
         user_sent = US.user_response(action)
         print (user_sent)
+        print (US.get_reward())
         if DM.dialogue_end:
             count += 1
             US.print_cur_user_goal()
