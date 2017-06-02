@@ -1,0 +1,78 @@
+<html>
+    <head>
+        <title>Music Bot: {{ room }}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <!-- Bootstrap -->
+        <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+        <link href="{{ url_for('static', filename='css/bootstrap-theme.min.css') }}" rel="stylesheet">
+        <link href="{{ url_for('static', filename='css/chat.css') }}" rel="stylesheet">
+        <script src="{{ url_for('static', filename='js/bootstrap.js') }}"></script>
+        <script type="text/javascript" src="//code.jquery.com/jquery-1.4.2.min.js"></script>
+        <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
+        <script type="text/javascript" charset="utf-8">
+            var socket;
+            $(document).ready(function(){
+                socket = io.connect('http://' + document.domain + ':' + location.port + '/chat');
+                socket.on('connect', function() {
+                    socket.emit('joined', {});
+                });
+                socket.on('status', function(data) {
+                    $('#chat').val($('#chat').val() + '<' + data.msg + '>\n');
+                    $('#chat').scrollTop($('#chat')[0].scrollHeight);
+                });
+                socket.on('message', function(data) {
+                    $('#chat').val($('#chat').val() + data.msg + '\n');
+                    $('#chat').scrollTop($('#chat')[0].scrollHeight);
+                });
+                $('#text').keypress(function(e) {
+                    var code = e.keyCode || e.which;
+                    if (code == 13) {
+                        text = $('#text').val();
+                        $('#text').val('');
+                        socket.emit('text', {msg: text});
+                    }
+                });
+            });
+            function sendSlotForm() {
+                var dict_str = "{'intent': '" + slotForm.intent.value + "', 'artist': u'" + slotForm.artist.value + "', 'track': u'" + slotForm.track.value + "', 'genre': u'" + slotForm.genre.value + "'}";
+                socket.emit('slot', {slot: dict_str});
+            }
+            function leave_room() {
+                socket.emit('left', {}, function() {
+                    socket.disconnect();
+
+                    // go back to the login page
+                    window.location.href = "{{ url_for('main.index') }}";
+                });
+            }
+        </script>
+    </head>
+    <body>
+        <div class="container">
+            <div class="left-element" align="center">
+                <h1>Music Bot: {{ room }}</h1>
+                <textarea id="chat" cols="100" rows="20"></textarea><br><br>
+                <input id="text" size="80" placeholder="Enter your message here"><br><br>
+                <a href="#" onclick="leave_room();">Leave this room</a>
+            </div>
+            <div class="right-element" align="center">
+                <form id="slotForm" method="post" onsubmit="return false">
+                    <label for="intent">Intent</label>
+                    <select id='intent' name='intent'>
+                        <option value="search">search</option>
+                        <option value="recommend">recommend</option>
+                        <option value="info">info</option>
+                    </select><br><br>
+                    <label for="artist">Artist</label>
+                    <input type="text" id="artist" name="artist" placeholder="Artist"><br><br>
+                    <label for="track">Track</label>
+                    <input type="text" id="track" name="track" placeholder="Track"><br><br>
+                    <label for="genre">Genre</label>
+                    <input type="text" id="genre" name="genre" placeholder="Genre"><br><br>
+                    <input type="hidden" name="next" value="{{ request.path }}">
+                    <button type="button" onclick="sendSlotForm();">Submit</button>
+                </form>
+            </div>
+        </div>
+    </body>
+</html>
