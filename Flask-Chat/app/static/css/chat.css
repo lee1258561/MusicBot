@@ -16,3 +16,31 @@
     margin: 10;
     margin-top: 50;
 }
+
+.msg-box-out {
+	border: 2px solid;
+	border-radius: 5pt;
+	overflow: hidden;
+}
+
+#msg-box {
+	height: 60%;
+	overflow-y: scroll;
+}
+
+#msg-box p{
+	text-align: left;
+}
+
+#chat {
+	width: 100%;
+}
+
+.asr  {
+	float: left;
+}
+
+
+#text{
+	width: 100%;
+}
