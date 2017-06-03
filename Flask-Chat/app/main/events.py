@@ -27,9 +27,9 @@ def optParser():
     args = parser.parse_args()
     return args
 
-simulator = Simulator('../data/template/','../data/chinese_artist.json','../data/genres.json', '../data/genre_map.json')
 args = optParser()
-DM = Manager(args.nlu_data , args.model, args.genre_map, verbose=args.verbose)
+simulator = Simulator('../data/template/','../data/chinese_artist.json','../data/genres.json', '../data/genre_map.json')
+DM = Manager(args.nlu_data, args.model, args.genre_map, verbose=args.verbose)
 
 @socketio.on('joined', namespace='/chat')
 def joined(message):
@@ -37,6 +37,7 @@ def joined(message):
     A status message is broadcast to all people in the room."""
     room = session.get('room')
     join_room(room)
+    DM.state_init()
     emit('status', {'msg': session.get('name') + ' has entered the room.'}, room=room)
     emit('message', {'msg': 'Music Bot: 你好，請問需要什麼服務？'}, room=room)
 
@@ -46,7 +47,20 @@ def text(message):
     """Sent by a client when the user entered a new message.
     The message is sent to all people in the room."""
     room = session.get('room')
-    emit('message', {'msg': session.get('name') + ': ' + message['msg']}, room=room)
+    sent = message['msg']
+    emit('message', {'msg': session.get('name') + ': ' + sent}, room=room)
+    
+    action = DM.get_input(sent)
+    DM.print_current_state() # Debug
+
+    DM_response = DM.action_to_sentence(action)
+    if DM_response is not None:
+        emit('message', {'msg': 'Music Bot: ' + DM.action_to_sentence(action)}, room=room)
+    if DM.dialogue_end:
+        emit('message', {'msg': 'Music Bot: Dialogue System final response: ' + DM.dialogue_end_sentence}, room=room)
+        print('\nCongratulation!!! You have ended one dialogue successfully\n')
+        DM.state_init()
+    
 
 
 @socketio.on('slot', namespace='/chat')
@@ -58,19 +72,23 @@ def slot(message):
     simulator.set_user_goal(intent=slot_dict['intent'], artist=slot_dict['artist'], track=slot_dict['track'],\
             genre=slot_dict['genre'])
     simulator.print_cur_user_goal()
-    sent = simulator.user_response({'action':'question','intent':''})
+    sent = simulator.user_response({'action':'question'})
     emit('message', {'msg': session.get('name') + ': ' + sent}, room=room)
+    
     while True:
         action = DM.get_input(sent)
         DM.print_current_state()
-        emit('message', {'msg': 'Music Bot: ' + DM.action_to_sentence(action)}, room=room)
+        DM_response = DM.action_to_sentence(action)
+        if DM_response is not None:
+            emit('message', {'msg': 'Music Bot: ' + DM_response}, room=room)
         sent = simulator.user_response(action)
         emit('message', {'msg': session.get('name') + ': ' + sent}, room=room)
         if DM.dialogue_end:
-            emit('message', {'msg': 'Music Bot: ' + DM.dialogue_end_sentence}, room=room)
+            emit('message', {'msg': 'Music Bot: Dialogue System final response: ' + DM.dialogue_end_sentence}, room=room)
             print('\nCongratulation!!! You have ended one dialogue successfully\n')
             DM.state_init()
             break
+    
 
 
 @socketio.on('left', namespace='/chat')

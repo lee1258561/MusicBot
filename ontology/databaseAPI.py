@@ -9,7 +9,8 @@ from spotipy.oauth2 import SpotifyClientCredentials
 
 class Database():
     def __init__(self, genre_map_path, verbose=False):
-        self.__sp = spotipy.Spotify()
+        client_credentials_manager = SpotifyClientCredentials()
+        self.__sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
         self.__sp.trace = verbose #NOTE dubug
 
         with open(genre_map_path,'r') as f:
@@ -92,8 +93,6 @@ class Database():
         return infos, sentence
 
     def recommend(self, slots):
-        client_credentials_manager = SpotifyClientCredentials()
-        self.__sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
         seed_artists = None
         seed_tracks = None
@@ -199,6 +198,5 @@ if __name__ == '__main__':
     }
     _, sent =  db.recommend({'track':u'hall of frame'})
     print sent
-    db.search(slots)
     
 
