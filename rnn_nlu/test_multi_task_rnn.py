@@ -246,7 +246,7 @@ class test_model():
     data_set = [[]]
     sentence_seg = data_utils.naive_seg(sentence)
     token_ids = data_utils.prepare_one_data(sentence, self.vocab)
-    print(token_ids) # NOTE debug
+    # print(token_ids) # NOTE debug
 
     slot_ids = [0 for i in range(len(token_ids))]
     data_set[0].append([token_ids, slot_ids, [0]])
@@ -273,7 +273,7 @@ class test_model():
     for i, c in enumerate(classification_probs):
         classification_dict[self.rev_label_vocab[i]] = c
     tagging_word = [self.rev_tag_vocab[t] for t in tagging]
-    print(tagging_word)
+    # print(tagging_word)
     tag_tmp = '0'
     begin = True
     tag_dict = {}

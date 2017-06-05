@@ -46,40 +46,31 @@ import data_utils
 import seq2seq_model
 
 
-tf.app.flags.DEFINE_float("learning_rate", 0.5, "Learning rate.")
-tf.app.flags.DEFINE_float("learning_rate_decay_factor", 0.99,
-                          "Learning rate decays by this much.")
-tf.app.flags.DEFINE_float("max_gradient_norm", 5.0,
-                          "Clip gradients to this norm.")
-tf.app.flags.DEFINE_integer("batch_size", 64,
-                            "Batch size to use during training.")
-tf.app.flags.DEFINE_integer("size", 1024, "Size of each model layer.")
-tf.app.flags.DEFINE_integer("num_layers", 3, "Number of layers in the model.")
-tf.app.flags.DEFINE_integer("from_vocab_size", 40000, "English vocabulary size.")
-tf.app.flags.DEFINE_integer("to_vocab_size", 40000, "French vocabulary size.")
-tf.app.flags.DEFINE_string("data_dir", "/tmp", "Data directory")
-tf.app.flags.DEFINE_string("train_dir", "/tmp", "Training directory.")
-tf.app.flags.DEFINE_string("from_train_data", None, "Training data.")
-tf.app.flags.DEFINE_string("to_train_data", None, "Training data.")
-tf.app.flags.DEFINE_string("from_dev_data", None, "Training data.")
-tf.app.flags.DEFINE_string("to_dev_data", None, "Training data.")
-tf.app.flags.DEFINE_integer("max_train_data_size", 0,
-                            "Limit on the size of training data (0: no limit).")
-tf.app.flags.DEFINE_integer("steps_per_checkpoint", 200,
-                            "How many training steps to do per checkpoint.")
-tf.app.flags.DEFINE_boolean("decode", False,
-                            "Set to True for interactive decoding.")
-tf.app.flags.DEFINE_boolean("self_test", False,
-                            "Run a self-test if this is set to True.")
-tf.app.flags.DEFINE_boolean("use_fp16", False,
-                            "Train using fp16 instead of fp32.")
-
-FLAGS = tf.app.flags.FLAGS
-
 # We use a number of buckets and pad to the closest one for efficiency.
 # See seq2seq_model.Seq2SeqModel for details of how they work.
 _buckets = [(5, 10), (10, 15), (20, 25), (40, 50)]
+class Argument(object):
+    learning_rate = 0.5
+    learning_rate_decay_factor = 0.99
+    max_gradient_norm=  5.0
+    batch_size = 64
+    size = 300
+    num_layers = 2
+    from_vocab_size = 40000
+    to_vocab_size = 40000
+    data_dir = 'NLG_data'
+    train_dir = 'NLG_Model' 
+    from_train_data = None
+    to_train_data = None
+    from_dev_data = None
+    to_dev_data = None
+    max_train_data = 0
+    steps_per_checkpoint = 200
+    decode = False
+    self_test = False
+    use_fp16 = False
 
+FLAGS = Argument()    
 
 def read_data(source_path, target_path, max_size=None):
   """Read data from source and target files and put into buckets.
@@ -289,6 +280,43 @@ def decode():
       sys.stdout.flush()
       sentence = sys.stdin.readline()
 
+class NLG_decoder(object):
+    def __init__(self):
+        self.sess = tf.Session()
+        self.model = create_model(self.sess, True)
+        self.model.batch_size = 1  # We decode one sentence at a time.
+
+        # Load vocabularies.
+        en_vocab_path = os.path.join(FLAGS.data_dir, "vocab%d.from" % FLAGS.from_vocab_size)
+        fr_vocab_path = os.path.join(FLAGS.data_dir, "vocab%d.to" % FLAGS.to_vocab_size)
+        self.en_vocab, _ = data_utils.initialize_vocabulary(en_vocab_path)
+        _, self.rev_fr_vocab = data_utils.initialize_vocabulary(fr_vocab_path)
+
+    def decode(self, sentence):
+        # Get token-ids for the input sentence.
+        token_ids = data_utils.sentence_to_token_ids(tf.compat.as_bytes(sentence), self.en_vocab)
+        # Which bucket does it belong to?
+        bucket_id = len(_buckets) - 1
+        for i, bucket in enumerate(_buckets):
+            if bucket[0] >= len(token_ids):
+                bucket_id = i
+                break
+            else:
+                logging.warning("Sentence truncated: %s", sentence)
+                                        
+        # Get a 1-element batch to feed the sentence to the model.
+        encoder_inputs, decoder_inputs, target_weights = self.model.get_batch({bucket_id: [(token_ids, [])]}, bucket_id)
+        # Get output logits for the sentence.
+        _, _, output_logits = self.model.step(self.sess, encoder_inputs, decoder_inputs, target_weights, bucket_id, True)
+        # This is a greedy decoder - outputs are just argmaxes of output_logits.
+        outputs = [int(np.argmax(logit, axis=1)) for logit in output_logits]
+        # If there is an EOS symbol in outputs, cut them at that point.
+        if data_utils.EOS_ID in outputs:
+            outputs = outputs[:outputs.index(data_utils.EOS_ID)]
+        # Print out French sentence corresponding to outputs.
+        return " ".join([tf.compat.as_str(self.rev_fr_vocab[output]) for output in outputs])
+
+
 
 def self_test():
   """Test the translation model."""
@@ -319,4 +347,34 @@ def main(_):
     train()
 
 if __name__ == "__main__":
+  tf.app.flags.DEFINE_float("learning_rate", 0.5, "Learning rate.")
+  tf.app.flags.DEFINE_float("learning_rate_decay_factor", 0.99,
+                          "Learning rate decays by this much.")
+  tf.app.flags.DEFINE_float("max_gradient_norm", 5.0,
+                          "Clip gradients to this norm.")
+  tf.app.flags.DEFINE_integer("batch_size", 64,
+                            "Batch size to use during training.")
+  tf.app.flags.DEFINE_integer("size", 1024, "Size of each model layer.")
+  tf.app.flags.DEFINE_integer("num_layers", 3, "Number of layers in the model.")
+  tf.app.flags.DEFINE_integer("from_vocab_size", 40000, "English vocabulary size.")
+  tf.app.flags.DEFINE_integer("to_vocab_size", 40000, "French vocabulary size.")
+  tf.app.flags.DEFINE_string("data_dir", "/tmp", "Data directory")
+  tf.app.flags.DEFINE_string("train_dir", "/tmp", "Training directory.")
+  tf.app.flags.DEFINE_string("from_train_data", None, "Training data.")
+  tf.app.flags.DEFINE_string("to_train_data", None, "Training data.")
+  tf.app.flags.DEFINE_string("from_dev_data", None, "Training data.")
+  tf.app.flags.DEFINE_string("to_dev_data", None, "Training data.")
+  tf.app.flags.DEFINE_integer("max_train_data_size", 0,
+                            "Limit on the size of training data (0: no limit).")
+  tf.app.flags.DEFINE_integer("steps_per_checkpoint", 200,
+                            "How many training steps to do per checkpoint.")
+  tf.app.flags.DEFINE_boolean("decode", False,
+                            "Set to True for interactive decoding.")
+  tf.app.flags.DEFINE_boolean("self_test", False,
+                            "Run a self-test if this is set to True.")
+  tf.app.flags.DEFINE_boolean("use_fp16", False,
+                            "Train using fp16 instead of fp32.")
+
+  FLAGS = tf.app.flags.FLAGS
+
   tf.app.run()
