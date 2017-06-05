@@ -1,6 +1,6 @@
 <html>
     <head>
-        <title>Music Bot</title>
+        <title>Music Bot: {{ room }}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <!-- Bootstrap -->
         <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
@@ -13,8 +13,8 @@
 	 	<link rel='stylesheet prefetch' href='https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css'>
 
 	    <link rel="stylesheet" href="../static/css/chatbox.css">
-  		<script src='http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script>
         <script src="{{ url_for('static', filename='js/bootstrap.js') }}"></script>
+        <script type="text/javascript" src="//code.jquery.com/jquery-1.4.2.min.js"></script>
         <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
         <script type="text/javascript" charset="utf-8">
             var socket;
@@ -23,11 +23,10 @@
                 socket.on('connect', function() {
                     socket.emit('joined', {});
                 });
-				/*
                 socket.on('status', function(data) {
                     $('#chat').val($('#chat').val() + '<' + data.msg + '>\n');
                     $('#chat').scrollTop($('#chat')[0].scrollHeight);
-                });*/
+                });
                 socket.on('message', function(data) {
                     //$('#chat').val($('#chat').val() + data.msg + '\n');
                     //$('#chat').scrollTop($('#chat')[0].scrollHeight);
@@ -60,6 +59,8 @@
 					}
 					$('.chat-history').scrollTop($(".chat-history")[0].scrollHeight);
 					$('#chat').append($('<p>').text(data.msg));
+					var elem = document.getElementById('msg-box');
+					elem.scrollTop = elem.scrollHeight;
                 });
 
 				function send_message(){
@@ -79,7 +80,15 @@
 						$('#message-to-send-button').click();
                     }
 				});
-           });
+                $('#text').keypress(function(e) {
+                    var code = e.keyCode || e.which;
+                    if (code == 13) {
+                        text = $('#text').val();
+                        $('#text').val('');
+                        socket.emit('text', {msg: text});
+                    }
+                });
+            });
             function sendSlotForm() {
                 var dict_str = "{'intent': '" + slotForm.intent.value + "', 'artist': u'" + slotForm.artist.value + "', 'track': u'" + slotForm.track.value + "', 'genre': u'" + slotForm.genre.value + "'}";
                 socket.emit('slot', {slot: dict_str});
@@ -100,7 +109,7 @@
       <div class="chat-header clearfix">
         
         <div class="chat-about">
-			<div class="chat-with"> <span class="glyphicon glyphicon-music"></span> Music Bot </div>
+          <div class="chat-with"> <span class="glyphicon glyphicon-music"></span> Music Bot</div>
         </div>
       </div> <!-- end chat-header -->
       
@@ -153,9 +162,77 @@
     </div>
   </li>
 </script>
+  <script src='http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script>
 <script src='http://cdnjs.cloudflare.com/ajax/libs/handlebars.js/3.0.0/handlebars.min.js'></script>
 <script src='http://cdnjs.cloudflare.com/ajax/libs/list.js/1.1.1/list.min.js'></script>
 
+
+
+        <div class="container">
+            <div class="col-lg-6" align="center">
+                <h1>Music Bot: {{ room }}</h1>
+				<div class="msg-box-out">
+					<div id="msg-box">
+						<span id="chat"></span>
+						<!--<textarea id="chat"></textarea><br><br> -->
+					</div>
+				</div>
+				<div>
+				<button id="startBtn" type="button" class="btn btn-default asr" disabled="disabled">
+					Start <i class="fa fa-commenting-o"></i>
+				</button>
+                <button id="stopBtn" type="button" class="btn btn-default asr" disabled="disabled">
+					Stop <i class="fa fa-commenting-o"></i>
+				</button>
+				<p class="asr">Current hypothesis: <span id="hypothesisDiv"></span></p>
+                <input id="text" placeholder="Enter your message here">
+				</div>
+                <a href="#" onclick="leave_room();">Leave this room</a>
+            </div>
+            <div class="col-lg-6" align="center">
+                <form id="slotForm" method="post" onsubmit="return false">
+                    <label for="intent">Intent</label>
+                    <select id='intent' name='intent'>
+                        <option value="search">search</option>
+                        <option value="recommend">recommend</option>
+                        <option value="info">info</option>
+                    </select><br><br>
+                    <label for="artist">Artist</label>
+                    <input type="text" id="artist" name="artist" placeholder="Artist"><br><br>
+                    <label for="track">Track</label>
+                    <input type="text" id="track" name="track" placeholder="Track"><br><br>
+                    <label for="genre">Genre</label>
+                    <input type="text" id="genre" name="genre" placeholder="Genre"><br><br>
+                    <input type="hidden" name="next" value="{{ request.path }}">
+                    <button type="button" onclick="sendSlotForm();">Submit</button>
+                </form>
+            </div>
+
+		<!-- Microsoft ASR -->
+		<table width="100%">
+        <tr>
+            <td></td>
+            <td>
+                <button id="startBtn" disabled="disabled">Start</button>
+                <button id="stopBtn" disabled="disabled">Stop</button>
+            </td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>Current hypothesis: <span id="hypothesisDiv"></span></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>
+                <textarea id="phraseDiv" style="width:500px;height:200px"></textarea>
+            </td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>Status: <span id="statusDiv"></span></td>
+        </tr>
+    </table>
+        </div>
 
 		<!-- The SDK has a dependency on requirejs (http://requirejs.org/). -->
 		<script src="//cdnjs.cloudflare.com/ajax/libs/require.js/2.3.3/require.min.js"></script>
@@ -259,9 +336,9 @@
 				createBtn = document.getElementById("createBtn");
 				startBtn = document.getElementById("startBtn");
 				stopBtn = document.getElementById("stopBtn");
-				//phraseDiv = document.getElementById("phraseDiv");
-				//hypothesisDiv = document.getElementById("hypothesisDiv");
-				//statusDiv = document.getElementById("statusDiv");
+				phraseDiv = document.getElementById("phraseDiv");
+				hypothesisDiv = document.getElementById("hypothesisDiv");
+				statusDiv = document.getElementById("statusDiv");
 				//key = document.getElementById("key");
 				key = "41835db9121c4ca0acaed79f163ae48c"
 				//languageOptions = document.getElementById("languageOptions");
@@ -283,8 +360,8 @@
 						previousSubscriptionKey = key;
 						Setup();
 					}
-					//hypothesisDiv.innerHTML = "";
-					//phraseDiv.innerHTML = "";
+					hypothesisDiv.innerHTML = "";
+					phraseDiv.innerHTML = "";
 					RecognizerStart(SDK, recognizer);
 					startBtn.disabled = true;
 					stopBtn.disabled = false;
@@ -303,16 +380,16 @@
 				recognizer = RecognizerSetup(SDK, SDK.RecognitionMode.Interactive, languageOptions, SDK.SpeechResultFormat[formatOptions], key);
 			}
 			function UpdateStatus(status) {
-				//statusDiv.innerHTML = status;
+				statusDiv.innerHTML = status;
 			}
 			function UpdateRecognizedHypothesis(text) {
-				//hypothesisDiv.innerHTML = text;
+				hypothesisDiv.innerHTML = text;
 			}
 			function OnSpeechEndDetected() {
 				stopBtn.disabled = true;
 			}
 			function UpdateRecognizedPhrase(json) {
-				//phraseDiv.innerHTML = json;
+				phraseDiv.innerHTML = json;
 				json = JSON.parse(json);
 				console.log(json);
 				console.log(json["NBest"][0]["Lexical"]);
