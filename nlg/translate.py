@@ -44,7 +44,8 @@ import tensorflow as tf
 
 import data_utils
 import seq2seq_model
-
+import nltk
+#import data_generator
 
 # We use a number of buckets and pad to the closest one for efficiency.
 # See seq2seq_model.Seq2SeqModel for details of how they work.
@@ -233,7 +234,8 @@ def train():
         sys.stdout.flush()
 
 
-def decode():
+def decode(test_dir):
+  
   with tf.Session() as sess:
     # Create model and load parameters.
     model = create_model(sess, True)
@@ -249,9 +251,23 @@ def decode():
 
     # Decode from standard input.
     sys.stdout.write("> ")
-    sys.stdout.flush()
-    sentence = sys.stdin.readline()
-    while sentence:
+    f_en = open(os.path.join(test_dir, 'train.en'))
+    f_fr = open(os.path.join(test_dir, 'train.fr'))
+    
+    answers = []
+    for line in f_fr:
+      answers.append(line)
+
+    print(answers)
+    
+    bleu = 0.0
+    num = 0
+    count = 0
+    for line in f_en:
+      answer_sentence = answers[count].strip().split()
+      count += 1
+      sentence = line.strip()
+      print(sentence)
       # Get token-ids for the input sentence.
       token_ids = data_utils.sentence_to_token_ids(tf.compat.as_bytes(sentence), en_vocab)
       # Which bucket does it belong to?
@@ -275,10 +291,16 @@ def decode():
       if data_utils.EOS_ID in outputs:
         outputs = outputs[:outputs.index(data_utils.EOS_ID)]
       # Print out French sentence corresponding to outputs.
-      print(" ".join([tf.compat.as_str(rev_fr_vocab[output]) for output in outputs]))
+      predict = [tf.compat.as_str(rev_fr_vocab[output]) for output in outputs]
+      print(' '.join(predict))
+      #print(answer_sentence)
+      #print(predict)
+      bleu += nltk.translate.bleu_score.sentence_bleu([answer_sentence], predict)
+      num += 1
       print("> ", end="")
-      sys.stdout.flush()
-      sentence = sys.stdin.readline()
+      #sys.stdout.flush()
+      #sentence = sys.stdin.readline()
+    print('%s BLEU: %f' % (test_dir, bleu / num))
 
 class NLG_decoder(object):
     def __init__(self):
@@ -292,7 +314,8 @@ class NLG_decoder(object):
         self.en_vocab, _ = data_utils.initialize_vocabulary(en_vocab_path)
         _, self.rev_fr_vocab = data_utils.initialize_vocabulary(fr_vocab_path)
 
-    def decode(self, sentence):
+    def decode(self, frame):
+        snetence = data_generator.get_input(frame)
         # Get token-ids for the input sentence.
         token_ids = data_utils.sentence_to_token_ids(tf.compat.as_bytes(sentence), self.en_vocab)
         # Which bucket does it belong to?
@@ -342,7 +365,8 @@ def main(_):
   if FLAGS.self_test:
     self_test()
   elif FLAGS.decode:
-    decode()
+    #decode('100_data')
+    decode('test_data')
   else:
     train()
 

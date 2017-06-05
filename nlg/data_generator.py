@@ -2,7 +2,9 @@ import json
 import os 
 import pandas as pd
 import argparse
+import random
 
+from math import ceil
 from copy import copy
 sys_intent = ['question', 'confirm']
 intents = ['search', 'recommend', 'info']
@@ -78,7 +80,7 @@ def generate_input(frame):
 
 
 
-def generate_sentence(data, template_path, data_dir):
+def generate_sentence(data, template_path, data_dir, p):
     frame_templates_pairs = [] 
     with open(template_path, 'r') as f:
         for line in f:
@@ -122,22 +124,45 @@ def generate_sentence(data, template_path, data_dir):
     if not os.path.exists(data_dir):
         os.mkdir(data_dir)
 
+    random.shuffle(seq_pairs)
+    data_size = ceil(float(len(seq_pairs)) * p)
     with open(os.path.join(data_dir, 'train.en'), 'w') as f_en, open(os.path.join(data_dir, 'train.fr'), 'w') as f_fr:
-        for p in seq_pairs:
+        for idx in range(data_size):
+            p = seq_pairs[idx]
             f_en.write(p[0] + '\n')
             f_fr.write(p[1] + '\n')
 
     with open(os.path.join(data_dir, 'valid.en'), 'w') as f_en, open(os.path.join(data_dir, 'valid.fr'), 'w') as f_fr:
-        pass
+        for idx in range(data_size):
+            p = seq_pairs[idx]
+            f_en.write(p[0] + '\n')
+            f_fr.write(p[1] + '\n')
+
     for p in seq_pairs:
         print(p)
 
+def get_input(frame):
+    sentence = [frame['action']]
+    if 'intent' in frame:
+        sentence.append(frame['intent'])
+    if frame['action'] == 'question' and 'intent' in frame:
+        sentence = ['Hello', 'none']
+
+    for s in slots:
+        if s in frame:
+            sentence.append('True')
+        else: 
+            sentence.append('none')
+
+    sentence.append('0')
+
+    return ' '.join(sentence)
 
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--template_path', type=str, help="Path to template file")
     parser.add_argument('--data_dir', type=str, help="Path to data directory")
-
+    parser.add_argument('--p', type=float, help="percent of data")
     args = parser.parse_args()
     return args
 
@@ -145,7 +170,7 @@ def get_args():
 if __name__ == '__main__':
     args = get_args()
     #data = load_data('../data/template', '../data/chinese_artist.json', '../data/genres.json')
-    generate_sentence([], args.template_path, args.data_dir)
+    generate_sentence([], args.template_path, args.data_dir, args.p)
 
 
 
