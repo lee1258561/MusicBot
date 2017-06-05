@@ -7,6 +7,7 @@ class policy_network():
 
     def __init__(self,model_dir,action_num=10):
         self.memory = []
+        self.memory_size = 1000
         self.batch_size = 64
         self.action_num = action_num
         self.model_dir = model_dir
@@ -14,7 +15,7 @@ class policy_network():
         if not os.path.exists(self.model_dir):
             os.mkdir(self.model_dir)
 
-        self.__build_model()     
+        self.__build_model()
         self.step = 0
 
 
@@ -69,7 +70,8 @@ class policy_network():
 
 
     def save_model(self):
-        self.saver.save(self.sess, self.model_dir, global_step=step)
+        path = self.model_dir + 'ckeckpoint'
+        self.saver.save(self.sess, path, global_step=self.step)
 
 
     def load_model(self):

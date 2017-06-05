@@ -3,6 +3,8 @@ from __future__ import print_function
 
 import argparse
 import sys
+import os
+import json
 import re
 from ontology import databaseAPI
 from rnn_nlu import data_utils, test_multi_task_rnn
@@ -32,7 +34,8 @@ def optParser():
 
 
 class Manager():
-    def __init__(self,data_dir,train_dir, genre_map, verbose=False,policy_network=None,load_policy_network=None,do_call_API=True):
+    def __init__(self,data_dir,train_dir, genre_map, verbose=False,
+                 policy_network=None,load_policy_network=None,do_call_API=True):
         self.DB = databaseAPI.Database(genre_map, verbose=verbose)
         self.NLUModel = test_multi_task_rnn.test_model(data_dir,train_dir)
         self.policy_network = policy_network
@@ -43,9 +46,12 @@ class Manager():
         #slot to fill for each action
         self.intent_slot_dict = {'search':['artist','track'],'recommend':['artist','track','genre'],'info':['track','artist'],None:[],'':[]}
         self.slot_prob_map = ['PAD','UNK',None,'track','artist','genre']
-        self.valid_action = ['question_intent','question_slot_track','question_slot_artist','question_slot_track',
-                             'confirm_intent','confirm_slot_track','confirm_slot_artist','confirm_slot_track',
+        self.valid_action = ['question_intent','question_slot_track','question_slot_artist','question_slot_genre',
+                             'confirm_intent','confirm_slot_track','confirm_slot_artist','confirm_slot_genre',
                              'response','info']
+        self.action_set = {'question_intent':0,'question_slot_track':1,'question_slot_artist':2,
+                           'question_slot_genre':3,'confirm_intent':4,'confirm_slot_track':5,
+                           'confirm_slot_artist':6,'confirm_slot_genre':7,'response':8,'info':9}
         self.positive_response = [u'是的',u'對',u'對啊',u'恩',u'沒錯',u'是啊',u'就是這樣',u'你真聰明',u'是',u'有',u'好啊']
         self.negative_response = [u'不是',u'錯了',u'不對',u'不用',u'沒有',u'算了',u'不需要',u'不 ']
         #action threshold:
@@ -59,7 +65,6 @@ class Manager():
 
         self.dialogue_end_sentence = ''
         self.state_init()
-  
 
     def get_state_vec(self):
         """
@@ -92,8 +97,18 @@ class Manager():
         return state_vec.reshape([1,-1])
 
 
+    def get_action_idx(self, action):
+        action_name = action['action']
+        if action_name != 'response' and action_name != 'info':
+          if 'intent' in action:
+            action_name += '_intent'
+          elif 'slot' in action:
+            action_name += '_slot_%s' % action['slot'].keys()[0]
+        return self.action_set[action_name]
+        raise Exception('action index not found')
+        return None
 
-    def get_input(self,sentence,rule_based_action=True):
+    def get_input(self,sentence,agent):
         self.in_sent = sentence
 
         sentence = re.sub(u'就這樣|是的|對啊|對|恩|沒錯|不是|錯了|不對','',sentence[:4]) + sentence[4:]
@@ -108,10 +123,16 @@ class Manager():
         #print('NLU_RESULT:',self.NLU_result)
 
         self.state_tracking()
-        if self.policy_network:
+        if agent == 'rule-based':
             state_vec = self.get_state_vec()
-            #print('state_vec:',state_vec)
+            action = self.action_maker()
+            sampled_action = np.zeros([len(self.valid_action)])
+            sampled_action[self.get_action_idx(action)] = 1.0
+            return action,state_vec.reshape([-1]),sampled_action
+        else:
+            state_vec = self.get_state_vec()
             action_distribution = self.policy_network.get_action_distribution(state_vec)
+            #print('state_vec:',state_vec)
             action_distribution = action_distribution.reshape([-1])
             #print('action_distribution:',action_distribution.shape)
             action_id = np.random.choice(len(self.valid_action),1, p=action_distribution)[0]
@@ -120,9 +141,6 @@ class Manager():
             sampled_action[action_id] = 1.0
             #print('action',action)
             return action,state_vec.reshape([-1]),sampled_action
-        else:
-            action = self.action_maker()
-            return action
 
 
     def make_policy_action(self,action_id):
@@ -174,7 +192,7 @@ class Manager():
 
     def update_state_with_NLU(self,target=None,last_action_delete=None):
         """ Use the NLU result to update current state
-            if target is provided, 
+            if target is provided,
         """
         if target=='intent':
             if 'intent' in last_action_delete:
@@ -204,7 +222,7 @@ class Manager():
                         self.state['intent'][intent] += self.NLU_result['intent'][intent]
                     else:
                         self.state['intent'][intent] = self.NLU_result['intent'][intent]
-        
+
 
     def action_maker(self):
         #based on state, make action
@@ -227,7 +245,7 @@ class Manager():
 
             else:
                 cur_action = {'action':'confirm','slot':slot}
-            
+
         else:
             if self.max_intent_prob > self.intent_lower_threshold:
                 cur_action = {'action':'confirm','intent':self.max_intent}
@@ -278,7 +296,7 @@ class Manager():
         self.confirmed_state = {'intent':None,'slot':{'artist':None,'track':None,'genre':None}}
         self.action_history = []
         self.dialogue_end = False
-        self.cycle_num = 0 
+        self.cycle_num = 0
 
 
     def state_tracking(self):
@@ -333,7 +351,7 @@ class Manager():
 
         self.max_intent_prob = 0.0
         self.max_intent = ''
-        #put it to max slot if it's not confirmed(state_confirm!=-1 or prob<upper) if all confirmed end_turn=True 
+        #put it to max slot if it's not confirmed(state_confirm!=-1 or prob<upper) if all confirmed end_turn=True
         self.max_slot ={'track':None,'artist':None,'genre':None}
 
         if not self.confirmed_state['intent']:
@@ -343,7 +361,7 @@ class Manager():
                     self.max_intent = e
 
             if self.max_intent_prob>self.intent_upper_threshold:
-                self.confirmed_state['intent'] = self.max_intent            
+                self.confirmed_state['intent'] = self.max_intent
 
         all_slot_filled = True
         for slot_name in self.intent_slot_dict['recommend']:
@@ -366,7 +384,7 @@ class Manager():
         if self.confirmed_state['intent'] and all_slot_filled or self.cycle_num>=self.max_cycle_num:
             self.dialogue_end = True
         self.cycle_num += 1
-    
+
 
     def print_current_state(self):
         print('distribution state:')
@@ -405,7 +423,7 @@ class Manager():
                 print(self.action_history[-1]['slot'][e],end='')
         print('\n\n\n')
 
- 
+
     def action_to_sentence(self,action):
         intent_to_chinese = {'search':u'聽歌','recommend':u'推薦歌曲', 'info':u'詢問歌曲資訊'}
         slot_to_chinese = {'artist':u'歌手名稱','track':u'歌曲名稱','genre':u'曲風'}
@@ -441,14 +459,14 @@ class Manager():
 
 
 def test(args):
-    
+
     DM = Manager(args.nlu_data , args.model, args.genre_map, verbose=args.verbose)
     #initialize user simulator:
     simulator = Simulator(args.template_dir, args.data, args.genre)
     simulator.set_user_goal(intent='search',artist=u'林俊傑',track=u'她說')
     simulator.print_cur_user_goal()
     sentence = simulator.user_response({'action':'question'})
-    
+
     while True:
         action = DM.get_input(sentence)
         DM.print_current_state()
@@ -484,7 +502,7 @@ def set_simulator_goal(simulator):
     return sentence
 
 def auto_test(args):
-    
+
     DM = Manager(args.nlu_data , args.model, args.genre_map, verbose=args.verbose)
     #initialize user simulator:
     simulator = Simulator(args.template_dir, args.data, args.genre,args.genre_map)
@@ -500,7 +518,7 @@ def auto_test(args):
             print('\nCongratulation!!! You have ended one dialogue successfully\n')
             DM.state_init()
             sentence = set_simulator_goal(simulator)
-            
+
 
 def stdin_test(args):
 
@@ -521,21 +539,26 @@ def stdin_test(args):
 
 
 def train_policy_network(args):
-    actor = policy_network('policy_network_model')
+    performance_records = {}
+    performance_records['success_rate'] = {}
+    performance_records['ave_turns'] = {}
+    performance_records['ave_reward'] = {}
+    actor = policy_network('policy_network_model/')
     DM = Manager(args.nlu_data , args.model, args.genre_map,
                  verbose=args.verbose,policy_network=actor,
                  do_call_API=False)
     #initialize user simulator:
     simulator = Simulator(args.template_dir, args.data, args.genre,args.genre_map)
+    _ = simulation(DM, actor, simulator, warm_start=True)
     episode_num = 0
     print('start training policy network')
-    while(episode_num<=400000):
+    while(episode_num<=10000):
         episode_num += 1
         temp_memory = []
         simulator.set_user_goal(random_init=True)
         sentence = simulator.user_response({'action':'question'})
         while True:
-            action,state_vec,sampled_action = DM.get_input(sentence)
+            action,state_vec,sampled_action = DM.get_input(sentence, 'pg')
             temp_memory.append([state_vec,sampled_action])
             sentence = simulator.user_response(action)
             if DM.dialogue_end:
@@ -544,11 +567,70 @@ def train_policy_network(args):
                 for i in range(len(temp_memory)):
                     actor.add_memory([temp_memory[i][0],temp_memory[i][1],reward])
                 break
-        if episode_num%100==0:
+        if episode_num%50==0:
             loss = actor.update()
-            print(episode_num,':',loss)
-    actor.save_model()
+            simulation_res = simulation(DM, actor, simulator, warm_start=False)
+            performance_records['success_rate'][episode_num] = simulation_res['success_rate']
+            performance_records['ave_turns'][episode_num] = simulation_res['ave_turns']
+            performance_records['ave_reward'][episode_num] = simulation_res['ave_reward']
+            print('episode: %s, success_rate: %s, reward: %s'
+                  % (episode_num, simulation_res['success_rate'], simulation_res['ave_reward']))
+            if not os.path.exists('performance_record/'):
+                os.mkdir('performance_record/')
+            save_performance_records('performance_record/', episode_num, performance_records)
+            actor.save_model()
 
+def simulation(DM, actor, simulator, warm_start):
+    successes = 0
+    cumulative_reward = 0
+    cumulative_turns = 0
+
+    res = {}
+    episode_num = 0
+    if warm_start:
+      agt = 'rule-based'
+      epochs = 100
+    else:
+      agt = 'pg'
+      epochs = 50
+    print('start simulation')
+    while(episode_num<=epochs):
+        episode_num += 1
+        temp_memory = []
+        simulator.set_user_goal(random_init=True)
+        sentence = simulator.user_response({'action':'question'})
+        while True:
+            action,state_vec,sampled_action = DM.get_input(sentence, agt)
+            temp_memory.append([state_vec,sampled_action])
+            sentence = simulator.user_response(action)
+            if DM.dialogue_end:
+                reward = simulator.cur_reward
+                if reward > 0:
+                  successes += 1
+                cumulative_reward += reward
+                cumulative_turns += DM.cycle_num
+                DM.state_init()
+                for i in range(len(temp_memory)):
+                    actor.add_memory([temp_memory[i][0],temp_memory[i][1],reward])
+                break
+        if len(actor.memory) >= actor.memory_size:
+            break
+    res['success_rate'] = float(successes)/epochs
+    res['ave_reward'] = float(cumulative_reward)/epochs
+    res['ave_turns'] = float(cumulative_turns)/epochs
+    print("Simulation %s epochs, success rate %s, ave_reward %s, ave_turns %s"
+          % (epochs, res['success_rate'], res['ave_reward'], res['ave_turns']))
+    print("Current experience replay buffer size % s" % (len(actor.memory)))
+    return res
+
+def save_performance_records(path, episode, records):
+    filename = 'performance_records_%s.json' % episode
+    filepath = os.path.join(path, filename)
+    try:
+        json.dump(records, open(filepath, "wb"))
+        print('saved model in %s' % (filepath))
+    except:
+        print('Error: Writing model fails: %s' % (filepath))
 
 if __name__ == '__main__':
     args = optParser()
