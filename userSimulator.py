@@ -19,6 +19,8 @@ slots = ['artist','track', 'genre']
 tokens = ['[s]','[t]','[g]']
 slot_token_map = {'artist':'[s]', 'track':'[t]', 'genre':'[g]'}
 token_slot_map = {'[s]':'artist', '[t]':'track', '[g]':'genre'}
+SUCCESS_REWARD = 10.
+TURN_REWARD = -0.1
 
 def opt_parse():
     parser = argparse.ArgumentParser(description=\
@@ -163,9 +165,9 @@ class Simulator():
         ''' Return current reward
             can only be called after user_response()
         '''
-        value = -0.1
+        value = TURN_REWARD
         if self.cur_success:
-            value += 1
+            value += SUCCESS_REWARD
         return value
 
     def __fill_slot(self, template):
@@ -261,7 +263,7 @@ class Simulator():
         return sent
 
     def __reward_calculate(self,dst_msg):
-        self.cur_reward = -0.1*self.cur_nb_turn
+        self.cur_reward = TURN_REWARD*self.cur_nb_turn
 
         ### fill dst_msg with None if the slot not found
         for key in self.cur_slot:
@@ -280,7 +282,7 @@ class Simulator():
             dst_msg['slot']['artist'] == self.cur_slot['artist'] and\
             dst_msg['slot']['track'] == self.cur_slot['track'] and\
             dst_msg['slot']['genre'] == self.cur_slot['genre']:
-                self.cur_reward += 1
+                self.cur_reward += SUCCESS_REWARD
                 self.cur_success = True
 
        # else:
