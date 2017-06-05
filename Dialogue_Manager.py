@@ -47,7 +47,7 @@ class Manager():
                              'confirm_intent','confirm_slot_track','confirm_slot_artist','confirm_slot_track',
                              'response','info']
         self.positive_response = [u'是的',u'對',u'對啊',u'恩',u'沒錯',u'是啊',u'就是這樣',u'你真聰明',u'是',u'有',u'好啊']
-        self.negative_response = [u'不是',u'錯了',u'不對',u'不用',u'沒有',u'算了',u'不需要',u'不 ']
+        self.negative_response = [u'不是',u'錯了',u'不對',u'不用',u'沒有',u'算了',u'不需要',u'不 ',u'不要']
         #action threshold:
         self.intent_upper_threshold = 1.9
         self.intent_lower_threshold = 0.1
@@ -63,16 +63,17 @@ class Manager():
 
     def get_state_vec(self):
         """
-        output vector is a 12 dim vector
+        output vector is a 10 dim vector
             3:current state intent prob
             3:current state slot prob
-            3:confirmed state intent(binary)
+            1:confirmed state intent(binary)
             3:confirmed state slot(binary)
         """
-        state_vec = np.zeros(12)
+        state_vec = np.zeros(10)
         i = 0
         for intent_name in self.state['intent']:
-            state_vec[i] = self.state['intent'][intent_name]
+            if self.confirmed_state['intent'] is None:
+                state_vec[i] = self.state['intent'][intent_name]
             i += 1
 
         for slot_name in self.state['slot']:
@@ -80,10 +81,10 @@ class Manager():
                 state_vec[i] = self.max_slot[slot_name][1]
             i += 1
 
-        for intent_name in self.state['intent']:
-            if intent_name == self.confirmed_state['intent']:
-                state_vec[i] = 1
-            i += 1
+        if self.confirmed_state['intent'] is not None:
+            state_vec[i] = 1.0
+        i += 1
+
         for slot_name in self.state['slot']:
             if self.confirmed_state['slot'][slot_name] is not None:
                 state_vec[i] = 1.0
@@ -97,14 +98,13 @@ class Manager():
         self.in_sent = sentence
 
         sentence = re.sub(u'就這樣|是的|對啊|對|恩|沒錯|不是|錯了|不對','',sentence[:4]) + sentence[4:]
-        #print("CURRENT TURN START!!!!!!")
-        #print('input:',self.in_sent)
-        #print('NLU_input:',sentence)
+        """
+        print("CURRENT TURN START!!!!!!")
+        print('input:',self.in_sent)
+        print('NLU_input:',sentence)
+        """
 
-        if len(sentence)>3:
-            self.NLU_result = self.NLUModel.feed_sentence(sentence)
-        else:
-            self.NLU_result = None
+        self.NLU_result = self.NLUModel.feed_sentence(sentence)
         #print('NLU_RESULT:',self.NLU_result)
 
         self.state_tracking()
@@ -181,7 +181,8 @@ class Manager():
                 self.state['intent'][last_action_delete['intent']] = 0.0
         elif target=='slot':
             for slot_name in last_action_delete['slot']:
-                if 'slot' in last_action_delete['slot']:
+                #self.state['slot'][slot_name][last_action_delete['slot'][slot_name]] = 0.0
+                if 'slot' in last_action_delete:
                     self.state['slot'][slot_name][last_action_delete['slot'][slot_name]] = 0.0
 
         if not self.NLU_result:
@@ -291,6 +292,9 @@ class Manager():
         #if system have confirm intent value
         if self.confirmed_state['intent']:
             if last_action['action'] == 'question' and any(e in self.in_sent for e in self.negative_response):
+                if 'slot' in last_action:
+                    for slot_name in last_action['slot']:
+                        self.confirmed_state['slot'][slot_name] = -1.0
                 if 'slot' in last_action:
                     for slot_name in last_action['slot']:
                         self.confirmed_state['slot'][slot_name] = -1.0
@@ -521,14 +525,16 @@ def stdin_test(args):
 
 
 def train_policy_network(args):
-    actor = policy_network('policy_network_model')
+    actor = policy_network('policy_network_model2')
     DM = Manager(args.nlu_data , args.model, args.genre_map,
                  verbose=args.verbose,policy_network=actor,
                  do_call_API=False)
     #initialize user simulator:
     simulator = Simulator(args.template_dir, args.data, args.genre,args.genre_map)
     episode_num = 0
+    success_num = 0.0
     print('start training policy network')
+    result_file = open('sucess_rate2.txt','w')
     while(episode_num<=400000):
         episode_num += 1
         temp_memory = []
@@ -540,14 +546,20 @@ def train_policy_network(args):
             sentence = simulator.user_response(action)
             if DM.dialogue_end:
                 reward = simulator.cur_reward
+                if reward>0:
+                    success_num += 1.0
                 DM.state_init()
                 for i in range(len(temp_memory)):
                     actor.add_memory([temp_memory[i][0],temp_memory[i][1],reward])
                 break
         if episode_num%100==0:
             loss = actor.update()
-            print(episode_num,':',loss)
-    actor.save_model()
+            print(episode_num,':',loss,success_num/100.)
+            result_file.write(str(episode_num)+':'+str(loss)+':'+str(success_num/100.)+'\n')
+            success_num = 0.0
+
+        if episode_num%5000==0:   
+            actor.save_model(episode_num)
 
 
 if __name__ == '__main__':

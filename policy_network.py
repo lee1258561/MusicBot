@@ -22,7 +22,7 @@ class policy_network():
         self.graph = tf.Graph()
         with self.graph.as_default() as g:
             with g.name_scope( "policy_graph" ) as scope:
-                self.input_vec = tf.placeholder(dtype=tf.float32, shape=(None,12))
+                self.input_vec = tf.placeholder(dtype=tf.float32, shape=(None,10))
                 self.reward = tf.placeholder(dtype=tf.float32,shape=(None))
                 self.sampled_action = tf.placeholder(dtype=tf.float32,shape=(None,self.action_num))
                 with tf.variable_scope("policy_linear0") as scope:
@@ -40,6 +40,7 @@ class policy_network():
             else:
                 self.sess.run(tf.global_variables_initializer())
         tf.reset_default_graph()
+
 
     def update(self,num_batch=10):
         self.step += 1
@@ -68,7 +69,7 @@ class policy_network():
         self.memory.append(one_data)
 
 
-    def save_model(self):
+    def save_model(self,step):
         self.saver.save(self.sess, self.model_dir, global_step=step)
 
 
