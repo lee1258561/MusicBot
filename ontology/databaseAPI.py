@@ -39,13 +39,15 @@ class Database():
 
         results = self.__sp.search(q=query, type='track')
         items = results['tracks']['items']
+        url = ''
         if len(items) > 0:
             items = sorted(items,key=itemgetter('popularity'),reverse=True)
             sentence = (u'幫你播 ' + items[0]['artists'][0]['name'] + u' 的 ' + items[0]['name'])
+            url = 'https://open.spotify.com/embed?uri='+items[0]['uri']
         else:
             sentence = (u'Sorry Not Found...')
         #print(sentence)
-        return items, sentence
+        return items, sentence, url
 
     def info(self, slots):
         ### TODO list more songs
@@ -196,7 +198,7 @@ if __name__ == '__main__':
         #'album': args.album,
         #'track': args.track
     }
-    _, sent =  db.recommend({'track':u'hall of frame'})
-    print sent
+    _, sent, url =  db.search({'track':u'hall of fame'})
+    print sent, url
     
 

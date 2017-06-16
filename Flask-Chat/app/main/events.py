@@ -61,6 +61,8 @@ def text(message):
         emit('message', {'u_name':'Music Bot', 'msg': DM.action_to_sentence(action)}, room=room)
     if DM.dialogue_end:
         emit('message', {'u_name':'Music Bot', 'msg': DM.dialogue_end_sentence}, room=room)
+        if DM.dialogue_end_type == 'search':
+            emit('message',{'u_name':'Music Bot', 'toPlay':1, 'url':DM.dialogue_end_track_url})
         print('\nCongratulation!!! You have ended one dialogue successfully\n')
         DM.state_init()
     
@@ -79,6 +81,7 @@ def slot(message):
     sent = simulator.user_response({'action':'question'})
     emit('message', {'msg': session.get('name') + ': ' + sent}, room=room)
     
+    
     while True:
         action = DM.get_input(sent)
         DM.print_current_state()
@@ -93,8 +96,7 @@ def slot(message):
             DM.state_init()
             break
     
-
-
+    
 @socketio.on('left', namespace='/chat')
 def left(message):
     """Sent by clients when they leave a room.
