@@ -59,6 +59,8 @@ class Manager():
         #if cycle_num > max_cycle_num, end the dialogue
         self.max_cycle_num = 12
 
+        self.dialogue_end_track_url = ''
+        self.dialogue_end_type = ''
         self.dialogue_end_sentence = ''
         self.state_init()
 
@@ -171,12 +173,15 @@ class Manager():
         if self.dialogue_end:
             cur_action = {'intent':'','slot':{}}
             s = {}
+            sentence = ''
+            url = ''
             for slot_name in self.confirmed_state['slot']:
                 if self.confirmed_state['slot'][slot_name] != None and self.confirmed_state['slot'][slot_name] != -1:
                     s[slot_name] = self.confirmed_state['slot'][slot_name]
             if self.confirmed_state['intent']=='search':
                 cur_action['action'] = 'response'
-                _,sentence,_ = self.DB.search(s)
+                _,sentence, url = self.DB.search(s)
+                self.dialogue_end_track_url = url
             elif self.confirmed_state['intent']=='info':
                 cur_action['action'] = 'info'
                 _,sentence = self.DB.info(s)
@@ -184,6 +189,7 @@ class Manager():
                 cur_action['action'] = 'info'
                 _,sentence = self.DB.recommend(s)
             self.dialogue_end_sentence = sentence
+            self.dialogue_end_type = self.confirmed_state['intent']
             cur_action['intent'] = self.confirmed_state['intent']
             for slot_name in self.confirmed_state['slot']:
                 if self.confirmed_state['slot'][slot_name]!=-1:
