@@ -34,7 +34,21 @@
 			    	var chatHistory = $('.chat-history');
 			    	var chatHistoryList =  chatHistory.find('ul');
 					var date = new Date();
-					if (data.u_name === 'Music Bot'){
+					if (data.toPlay === 1){
+						chatHistoryList.append( 
+						'  <li class="clearfix">'
+						  + '<div class="message-data">'
+						  + '<span class="message-data-time" title="'+ date.toDateString() + '">'
+							+ date.getHours() + ':' + date.getMinutes() + '{{time}}  </span> &nbsp; &nbsp;'
+						  + '<span class="message-data-name" >' + data.u_name + ' </span>'
+						  + '<i class="fa fa-circle online"></i>'
+						  + '</div>'
+						  + '<iframe class="player"'
+							+ 'src="'+ data.url + '" frameborder="0" allowtransparency="true"></iframe>'
+						+ '</li>');
+					}
+
+					else if (data.u_name === 'Music Bot'){
 						chatHistoryList.append( 
 						'  <li class="clearfix">'
 	 				 	 + '<div class="message-data">'
