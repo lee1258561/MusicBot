@@ -17,7 +17,7 @@ class Database():
             self.genre_map = json.load(f)
 
     def get_artist(self, artist_name):
-        results = self.__sp.search(q='artist:' + artist_name, type='artist')
+        results = self.__sp.search(q='artist:' + artist_name, type='artist', limit=50)
         items = results['artists']['items']
         return items
 
@@ -27,17 +27,27 @@ class Database():
         return items
 
     def get_track(self, track_name):
-        results = self.__sp.search(q='track:' + track_name, type='track')
+        results = self.__sp.search(q='track:' + track_name, type='track', limit=50)
         items = results['tracks']['items']
         return items
 
     def check_track(self, track_name):
         ''' Return number of track search results '''
-        return len(self.get_track(track_name))
+        items = self.get_track(track_name)
+        n = 0
+        for item in items:
+            if item['name'].lower() == track_name.lower():
+                n += 1
+        return n
 
     def check_artist(self, artist_name):
         ''' Return number of artist search results '''
-        return len(self.get_artist(artist_name))
+        items = self.get_artist(artist_name)
+        n = 0
+        for item in items:
+            if item['name'].lower() == artist_name.lower():
+                n += 1
+        return n
 
     def search(self, slots):
         query = ""
@@ -209,5 +219,5 @@ if __name__ == '__main__':
     }
     _, sent, url =  db.search({'track':u'hall of fame'})
     print sent, url
-    print db.check_artist(u'林正')
+    print db.check_artist(u'red hot chili peppers')
 
