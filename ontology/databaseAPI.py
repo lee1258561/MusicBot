@@ -25,10 +25,19 @@ class Database():
         results = self.__sp.search(q='album:' + album_name, type='album')
         items = results['albums']['items']
         return items
+
     def get_track(self, track_name):
         results = self.__sp.search(q='track:' + track_name, type='track')
         items = results['tracks']['items']
         return items
+
+    def check_track(self, track_name):
+        ''' Return number of track search results '''
+        return len(self.get_track(track_name))
+
+    def check_artist(self, artist_name):
+        ''' Return number of artist search results '''
+        return len(self.get_artist(artist_name))
 
     def search(self, slots):
         query = ""
@@ -200,5 +209,5 @@ if __name__ == '__main__':
     }
     _, sent, url =  db.search({'track':u'hall of fame'})
     print sent, url
-    
+    print db.check_artist(u'林正')
 
