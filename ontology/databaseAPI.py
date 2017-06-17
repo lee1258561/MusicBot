@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import spotipy
+import spotipy.util
 import argparse
 import pprint
 import json
@@ -7,6 +8,8 @@ import json
 from operator import itemgetter
 from spotipy.oauth2 import SpotifyClientCredentials
 
+SCOPE = ('playlist-modify-private playlist-read-private playlist-modify-public '
+         'playlist-read-collaborative')
 class Database():
     def __init__(self, genre_map_path, verbose=False):
         client_credentials_manager = SpotifyClientCredentials()
@@ -60,7 +63,7 @@ class Database():
         items = results['tracks']['items']
         url = ''
         if len(items) > 0:
-            items = sorted(items,key=itemgetter('popularity'),reverse=True)
+            #items = sorted(items,key=itemgetter('popularity'),reverse=True)
             sentence = (u'幫你播 ' + items[0]['artists'][0]['name'] + u' 的 ' + items[0]['name'])
             url = 'https://open.spotify.com/embed?uri='+items[0]['uri']
         else:
@@ -154,6 +157,55 @@ class Database():
         return tracks, sentence
 
 
+    def create_playlist(self, username, playlist_name):
+        sentence = ''
+        if self.__check_user_exist(username):
+            token = spotipy.util.prompt_for_user_token(username, SCOPE)
+            self.__sp = spotipy.Spotify(auth=token)
+            playlists = self.__sp.user_playlist_create(username, playlist_name, public=False)
+            sentence = u'為您新增播放清單 '+ playlist_name
+        return sentence
+
+
+    def add_track_to_playlist(self, username, playlist_name, slots):
+        sentence = ''
+        if self.__check_user_exist(username):
+            token = spotipy.util.prompt_for_user_token(username, SCOPE)
+            self.__sp = spotipy.Spotify(auth=token)
+            playlist_id = self.get_playlist_id(username, playlist_name)
+            items, _, _ = self.search(slots)
+            if len(items) > 0:
+                tracks = [ items[0]['id'] ]
+                self.__sp.user_playlist_add_tracks(username, playlist_id, tracks)
+                sentence = u'為您將 ' + slots['track'] + u' 加入清單 ' + playlist_name
+        return sentence
+
+    def play_playlist(self, username, playlist_name):
+        url = ''
+        sentence = ''
+        if self.__check_user_exist(username):
+            token = spotipy.util.prompt_for_user_token(username, SCOPE)
+            self.__sp = spotipy.Spotify(auth=token)
+            playlist_id = self.get_playlist_id(username, playlist_name)
+            if len(playlist_id) > 0: # if found this playlist
+                uri = 'spotify:user:' + username + ':playlist:' + playlist_id
+                sentence = u'為您播放清單 ' + playlist_name
+                url = 'https://open.spotify.com/embed?uri='+ uri
+        return sentence, url
+
+    def get_playlist_id(self, username, playlist_name):
+        # TODO: find through all playlists
+        # currently only look for 50 playlists, but it's good enough for demo
+        playlists = self.__sp.user_playlists(username, limit=50)['items']
+        playlist_id = ''
+        for p in playlists:
+            if p['name'] == playlist_name:
+                playlist_id = p['id']
+                break
+        print playlist_id
+        return playlist_id
+
+ 
     def show_album_tracks(self, album):
         tracks = []
         results = self.__sp.album_tracks(album['id'])
@@ -180,6 +232,14 @@ class Database():
         print('Popularity: ', artist['popularity'])
         if len(artist['genres']) > 0:
             print('Genres: ', ','.join(artist['genres']))
+
+    def __check_user_exist(self, username):
+        try:
+            self.__sp.user(username)
+            return True
+        except spotipy.client.SpotifyException:
+            print ('No such user: '+username)
+            return False
 
 def build_slot(sentence,pos):
     '''
@@ -217,7 +277,9 @@ if __name__ == '__main__':
         #'album': args.album,
         #'track': args.track
     }
-    _, sent, url =  db.search({'track':u'hall of fame'})
+    _, sent, url =  db.search({'track':u'no boundaries'})
     print sent, url
     print db.check_artist(u'red hot chili peppers')
-
+    #print db.create_playlist('seq2seq','test')
+    #print  db.add_track_to_playlist('seq2seq','test', {'track':'no boundaries'})
+    print (db.play_playlist('seq2seq','test'))
