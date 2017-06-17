@@ -17,7 +17,7 @@ class Database():
             self.genre_map = json.load(f)
 
     def get_artist(self, artist_name):
-        results = self.__sp.search(q='artist:' + artist_name, type='artist')
+        results = self.__sp.search(q='artist:' + artist_name, type='artist', limit=50)
         items = results['artists']['items']
         return items
 
@@ -25,10 +25,29 @@ class Database():
         results = self.__sp.search(q='album:' + album_name, type='album')
         items = results['albums']['items']
         return items
+
     def get_track(self, track_name):
-        results = self.__sp.search(q='track:' + track_name, type='track')
+        results = self.__sp.search(q='track:' + track_name, type='track', limit=50)
         items = results['tracks']['items']
         return items
+
+    def check_track(self, track_name):
+        ''' Return number of track search results '''
+        items = self.get_track(track_name)
+        n = 0
+        for item in items:
+            if item['name'].lower() == track_name.lower():
+                n += 1
+        return n
+
+    def check_artist(self, artist_name):
+        ''' Return number of artist search results '''
+        items = self.get_artist(artist_name)
+        n = 0
+        for item in items:
+            if item['name'].lower() == artist_name.lower():
+                n += 1
+        return n
 
     def search(self, slots):
         query = ""
@@ -39,13 +58,15 @@ class Database():
 
         results = self.__sp.search(q=query, type='track')
         items = results['tracks']['items']
+        url = ''
         if len(items) > 0:
             items = sorted(items,key=itemgetter('popularity'),reverse=True)
             sentence = (u'幫你播 ' + items[0]['artists'][0]['name'] + u' 的 ' + items[0]['name'])
+            url = 'https://open.spotify.com/embed?uri='+items[0]['uri']
         else:
             sentence = (u'Sorry Not Found...')
         #print(sentence)
-        return items, sentence
+        return items, sentence, url
 
     def info(self, slots):
         ### TODO list more songs
@@ -196,7 +217,7 @@ if __name__ == '__main__':
         #'album': args.album,
         #'track': args.track
     }
-    _, sent =  db.recommend({'track':u'hall of frame'})
-    print sent
-    
+    _, sent, url =  db.search({'track':u'hall of fame'})
+    print sent, url
+    print db.check_artist(u'red hot chili peppers')
 

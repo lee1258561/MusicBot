@@ -40,6 +40,7 @@ def joined(message):
     DM.state_init()
     emit('status', {'msg': session.get('name') + ' has entered the room.'}, room=room)
     emit('message', {'u_name':'Music Bot', 'msg': '你好，請問需要什麼服務？'}, room=room)
+    emit('message', {'u_name':'Music Bot', 'msg': 'MusicBot提供的服務有：(1)聽歌：依據歌手及歌曲名稱找到你想要聽的歌 (2)推薦歌曲：依據歌手、歌曲名稱及曲風(古典、爵士、金屬、搖滾、吉他⋯⋯)推薦類似歌曲 (3)詢問歌手或歌曲資訊'}, room=room)
 
 
 @socketio.on('text', namespace='/chat')
@@ -60,6 +61,8 @@ def text(message):
         emit('message', {'u_name':'Music Bot', 'msg': DM.action_to_sentence(action)}, room=room)
     if DM.dialogue_end:
         emit('message', {'u_name':'Music Bot', 'msg': DM.dialogue_end_sentence}, room=room)
+        if DM.dialogue_end_type == 'search':
+            emit('message',{'u_name':'Music Bot', 'toPlay':1, 'url':DM.dialogue_end_track_url})
         print('\nCongratulation!!! You have ended one dialogue successfully\n')
         DM.state_init()
     
@@ -78,6 +81,7 @@ def slot(message):
     sent = simulator.user_response({'action':'question'})
     emit('message', {'msg': session.get('name') + ': ' + sent}, room=room)
     
+    
     while True:
         action = DM.get_input(sent)
         DM.print_current_state()
@@ -92,8 +96,7 @@ def slot(message):
             DM.state_init()
             break
     
-
-
+    
 @socketio.on('left', namespace='/chat')
 def left(message):
     """Sent by clients when they leave a room.

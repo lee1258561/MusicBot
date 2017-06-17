@@ -198,6 +198,12 @@ body {
   float: right;
 }
 
+.player {
+  float: left;
+  height: 100px;
+}
+
+
 .clearfix:after {
   visibility: hidden;
   display: block;
