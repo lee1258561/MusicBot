@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import json
 import re
 
@@ -17,6 +18,21 @@ class rule_based_NLU():
 
         self.genres_list = json.load(open('data/genre_map.json')).keys()
 
+        self.playlist_map = {'sleep':[u'想睡覺',u'休息',u'睡眠',u'晚上',u'睡前'],
+                             'taiwan_popular':[u'熱門',u'流行',u'火紅',u'最多人',u'都在聽'],
+                             'study':[u'讀書',u'考試',u'唸書',u'看書'],
+                             'piano':[u'鋼琴'],
+                             'relax':[u'放鬆',u'純音樂',u'抒壓'],
+                             'japanese_popular':[u'日本'],
+                             'korean_popular':[u'韓國'],
+                             'global_popular':[u'全球',u'世界'],
+                             'japanese_rock':[u'日本搖滾',u'日式搖滾'],
+                             'jazz':[u'爵士'],
+                             'classical':[u'古典']
+                             }
+
+        self.list_name = {u'清單',u'歌單'}
+        self.list_crate = {u'創造'} 
 
     def _filt(self,track):
         track = re.sub('\'|\.|\=|\-|\/','',track)
@@ -38,7 +54,7 @@ class rule_based_NLU():
         if len(cur_artists)>0:
             result['artist'] = {}
             for a in cur_artists:
-                result['artist'][a] = 1.1 / (1 + 0.15*(len(cur_artists)-1.0))
+                result['artist'][a] = 1.1 / (1 + 0.1*(len(cur_artists)-1.0))
 
         for track in self.tracks_list:
             if track in input_sent:
@@ -47,7 +63,7 @@ class rule_based_NLU():
         if len(cur_tracks)>0:
             result['track'] = {}
             for t in cur_tracks:
-                result['track'][t] = 1.1 / (1 + 0.15*(len(cur_tracks)-1.0))
+                result['track'][t] = 1.1 / (1 + 0.1*(len(cur_tracks)-1.0))
 
         for genre in self.genres_list:
             if genre in input_sent:
@@ -56,5 +72,16 @@ class rule_based_NLU():
             result['genre'] = {}
             for g in cur_genres:
                 result['genre'][g] = 2.0
+
+        cur_num = 100
+        cur_playlist = ''
+        for playlist_name in self.playlist_map:
+            for keyword in self.playlist_map[playlist_name]:
+                if keyword in input_sent and len(self.playlist_map[playlist_name])<cur_num:
+                    cur_playlist = playlist_name
+                    cur_num = len(self.playlist_map[playlist_name])
+        if cur_playlist!='':
+            result['spotify_playlist'] = {}
+            result['spotify_playlist'][cur_playlist] = 2.0
 
         return result

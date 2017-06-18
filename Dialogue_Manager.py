@@ -23,6 +23,8 @@ def optParser():
             help='genres')
     parser.add_argument('--genre_map',default='./data/genre_map.json',\
             type=str,help='genre_map.json path')
+    parser.add_argument('--spotify_playlist',default='./data/spotify_playlist.json',\
+            type=str,help='spotify_playlist.json path')
     parser.add_argument('--random',action='store_true',help='whether to random user goal')
     parser.add_argument('--stdin',default=False,action='store_true',help='stdin test, enter sentence')
     parser.add_argument('--auto_test',default=False,action='store_true',help='auto test, enter user goal')
@@ -33,23 +35,28 @@ def optParser():
 
 
 class Manager():
-    def __init__(self,data_dir,train_dir, genre_map, verbose=False,policy_network=None,load_policy_network=None,do_call_API=True):
-        self.DB = databaseAPI.Database(genre_map, verbose=verbose)
+    def __init__(self,data_dir,train_dir, genre_map,spotify_playlist, verbose=False,user_name='default_user'):
+        self.DB = databaseAPI.Database(genre_map,spotify_playlist, verbose=verbose)
         self.NLUModel = test_multi_task_rnn.test_model(data_dir,train_dir)
         self.RULENLU = rule_based_NLU()
-        self.policy_network = policy_network
-        self.do_call_API = do_call_API
         self.in_sent = ''
         self.in_sent_seg = []
+        self.user_name = user_name
 
         #slot to fill for each action
-        self.intent_slot_dict = {'search':['artist','track'],'recommend':['artist','track','genre'],'info':['track','artist'],None:[],'':[]}
-        self.slot_prob_map = ['PAD','UNK',None,'track','artist','genre']
-        self.valid_action = ['question_intent','question_slot_track','question_slot_artist','question_slot_genre',
-                             'confirm_intent','confirm_slot_track','confirm_slot_artist','confirm_slot_genre',
-                             'response','info']
+        self.intent_slot_dict = {'search':['artist','track'],
+                                 'recommend':['artist','track','genre'],
+                                 'info':['track','artist'],
+                                 'playlistCreate':['playlist'],
+                                 'playlistAdd':['track','artist',
+                                 'playlist'],'playlistPlay':['playlist'],
+                                 'playlistShow':['playlist'],
+                                 'playlistTrack':[],
+                                 'all':['artist','track','genre','playlist','spotify_playlist'],
+                                 None:[],'empty':[]}
+        self.slot_prob_map = ['PAD','UNK',None,'track','artist','genre','playlist']
         self.positive_response = [u'是的',u'對',u'對啊',u'恩',u'沒錯',u'是啊',u'就是這樣',u'你真聰明',u'是',u'有',u'好啊']
-        self.negative_response = [u'不是',u'錯了',u'不對',u'不用',u'沒有',u'算了',u'不需要',u'不 ',u'不要',u'否',u'不曾']
+        self.negative_response = [u'不是',u'錯了',u'不對',u'不用',u'沒有',u'算了',u'不需要',u'不',u'不要',u'否',u'不曾',u'不知道']
         #action threshold:
         self.intent_upper_threshold = 0.95
         self.intent_lower_threshold = 0.9
@@ -80,6 +87,7 @@ class Manager():
         self.RULE_result = self.RULENLU.feed_sentence(sentence)
         print('NLU_RESULT:',self.NLU_result)
         print('RULE_RESULT:',self.RULE_result)
+
 
         self.state_tracking()
         action = self.action_maker()
@@ -133,6 +141,8 @@ class Manager():
                     self.state['slot'][slot_name][e] += self.RULE_result[slot_name][e]
                 else:
                     self.state['slot'][slot_name][e] = self.RULE_result[slot_name][e]
+        if len(self.state['slot']['spotify_playlist'])>0:
+            self.confirmed_state['intent'] = 'empty'
 
 
 
@@ -175,10 +185,31 @@ class Manager():
             s = {}
             sentence = ''
             url = ''
+
+            spotify_playlist = self.confirmed_state['slot']['spotify_playlist']
+            playlist = self.confirmed_state['slot']['playlist']
             for slot_name in self.confirmed_state['slot']:
                 if self.confirmed_state['slot'][slot_name] != None and self.confirmed_state['slot'][slot_name] != -1:
                     s[slot_name] = self.confirmed_state['slot'][slot_name]
-            if self.confirmed_state['intent']=='search':
+
+            if spotify_playlist is not None:
+                cur_action['action'] = 'response'
+                sentence,url = self.DB.playlistSpotify(spotify_playlist)               
+            elif self.confirmed_state['intent']=='playlistShow':
+                cur_action['action']='playlistShow'
+                sentence,playlistIDs = self.DB.playlistShow(self.user_name)
+            elif self.confirmed_state['intent']=='playlistTrack':
+                cur_action['action']='playlistTrack'
+                sentence,url = self.DB.playlistTrack(self.user_name,playlist)
+            elif self.confirmed_state['intent']=='playlistPlay':
+                cur_action['action']='playlistPlay'
+                sentence, url = self.DB.playlistPlay(self.user_name,playlist)
+            elif self.confirmed_state['intent']=='playlistCreate':
+                cur_action['action']='playlistCreate'
+                sentence,url = self.DB.playlistCreate(self.user_name,playlist)
+            elif self.confirmed_state['intent']=='playlistAdd':
+                self.playlistAdd(self.user_name,s)
+            elif self.confirmed_state['intent']=='search':
                 cur_action['action'] = 'response'
                 _,sentence, url = self.DB.search(s)
                 self.dialogue_end_track_url = url
@@ -188,6 +219,7 @@ class Manager():
             elif self.confirmed_state['intent']=='recommend':
                 cur_action['action'] = 'info'
                 _,sentence = self.DB.recommend(s)
+
             self.dialogue_end_sentence = sentence
             self.dialogue_end_type = self.confirmed_state['intent']
             cur_action['intent'] = self.confirmed_state['intent']
@@ -208,14 +240,16 @@ class Manager():
         """ initialize state: state is depending on state and action and dialogue_end
             state_intent:
         """
-        self.state = {'intent':{'search':0.0,'recommend':0.0,'info':0.0},'slot':{'track':{},'artist':{},'genre':{}},'turn':0}
-        if flag!=0:
+        self.state = {'intent':{'search':0.0,'recommend':0.0,'info':0.0,'playlistCreate':0.0,
+                                 'playlistAdd':0.0,'playlistPlay':0.0,'playlistShow':0.0,'playlistTrack':0.0},
+                      'slot':{'track':{},'artist':{},'genre':{},'playlist':{},'spotify_playlist':{}}}
+        if flag!=0 or self.confirmed_state['intent']=='info':
             for slot_name in self.confirmed_state['slot']:
                 if self.confirmed_state['slot'][slot_name] is not None:
-                    self.state['slot'][slot_name][self.confirmed_state['slot'][slot_name]] = 1.0
+                    self.state['slot'][slot_name][self.confirmed_state['slot'][slot_name]] = 1.16
 
         #'slot' = {'slot_name':{'slot_value':[prob]}}
-        self.confirmed_state = {'intent':None,'slot':{'artist':None,'track':None,'genre':None}}
+        self.confirmed_state = {'intent':None,'slot':{'artist':None,'track':None,'genre':None,'playlist':None,'spotify_playlist':None}}
         self.action_history = []
         self.dialogue_end = False
         self.cycle_num = 0 
@@ -230,7 +264,7 @@ class Manager():
 
         #if system have confirm intent value
         if self.confirmed_state['intent'] is not None:
-            if last_action['action'] == 'question' and any(e in self.in_sent for e in self.negative_response):
+            if last_action['action'] == 'question' and any(e in self.in_sent[:3] for e in self.negative_response):
                 if 'slot' in last_action:
                     for slot_name in last_action['slot']:
                         self.confirmed_state['slot'][slot_name] = -1.0
@@ -240,9 +274,9 @@ class Manager():
 
 
             elif last_action['action'] == 'confirm':
-                if any(e in self.in_sent for e in self.negative_response):
+                if any(e in self.in_sent[:3] for e in self.negative_response):
                     self.update_state_with_NLU('slot',last_action)
-                elif any(e in self.in_sent for e in self.positive_response):
+                elif any(e in self.in_sent[:3] for e in self.positive_response):
                     if 'slot' in last_action:
                         for slot_name in last_action['slot']:
                             self.confirmed_state['slot'][slot_name] = last_action['slot'][slot_name]
@@ -258,16 +292,16 @@ class Manager():
                 self.update_state_with_NLU()
 
             elif last_action['action'] == 'confirm':
-                if any(e in self.in_sent for e in self.negative_response):
+                if any(e in self.in_sent[:3] for e in self.negative_response):
                     self.update_state_with_NLU('intent',last_action)
-                elif any(e in self.in_sent for e in self.positive_response):
+                elif any(e in self.in_sent[:3] for e in self.positive_response):
                     if 'intent' in last_action:
                         self.confirmed_state['intent'] = last_action['intent']
                 else:
                     self.update_state_with_NLU()
 
             elif last_action['action'] == 'question':
-                if any(e in self.in_sent for e in self.negative_response):
+                if any(e in self.in_sent[:3] for e in self.negative_response):
                     if 'intent' in last_action:
                         self.state['intent'][last_action['intent']] = -100.0
                 else:
@@ -277,7 +311,7 @@ class Manager():
         self.max_intent_prob = 0.0
         self.max_intent = ''
         #put it to max slot if it's not confirmed(state_confirm!=-1 or prob<upper) if all confirmed end_turn=True 
-        self.max_slot ={'track':None,'artist':None,'genre':None}
+        self.max_slot ={'track':None,'artist':None,'genre':None,'playlist':None}
 
         if self.confirmed_state['intent'] is None:
             for e in self.state['intent']:
@@ -289,7 +323,7 @@ class Manager():
                 self.confirmed_state['intent'] = self.max_intent            
 
         all_slot_filled = True
-        for slot_name in self.intent_slot_dict['recommend']:
+        for slot_name in self.intent_slot_dict['all']:
             if not self.confirmed_state['slot'][slot_name] and len(self.state['slot'][slot_name])>0:
                 max_prob = 0.0
                 max_slot = ''
@@ -357,8 +391,12 @@ class Manager():
 
  
     def action_to_sentence(self,action):
-        intent_to_chinese = {'search':u'聽歌','recommend':u'推薦歌曲', 'info':u'詢問歌曲資訊'}
-        slot_to_chinese = {'artist':u'歌手名稱','track':u'歌曲名稱','genre':u'曲風'}
+        intent_to_chinese = {'search':u'聽歌','recommend':u'推薦歌曲', 'info':u'詢問歌曲資訊',
+                             'playlistCreate':u'建立歌單', 'playlistAdd':u'新增歌曲到歌單',
+                             'playlistPlay':u'播放歌單','playlistShow':u'列出使用者歌單',
+                             'playlistTrack':u'列出歌單中的歌曲'}
+        slot_to_chinese = {'artist':u'歌手名稱','track':u'歌曲名稱','genre':u'曲風','playlist':u'歌單'}
+        sent = ''
         if action['action']=='question':
             if 'intent' in action:
                 return u'你好啊，請問你想要什麼服務? 我可以推薦歌曲，播放歌曲，詢問歌曲或歌手資訊'
@@ -374,7 +412,7 @@ class Manager():
                 for slot_name in action['slot']:
                     sent = sent + slot_to_chinese[slot_name] + action['slot'][slot_name] + u'，'
                 sent = sent + u'嗎?'
-                return sent
+        return sent
 
 
 
@@ -456,7 +494,7 @@ def auto_test(args):
 
 def stdin_test(args):
 
-    DM = Manager(args.nlu_data , args.model, args.genre_map, verbose=args.verbose)
+    DM = Manager(args.nlu_data , args.model, args.genre_map, args.spotify_playlist,verbose=args.verbose)
 
     turn = 0
     while True:
@@ -471,7 +509,7 @@ def stdin_test(args):
             print(DM.dialogue_end_sentence)
             print('\nCongratulation!!! You have ended one dialogue successfully\n')
             turn += 1
-            DM.state_init(0)
+            DM.state_init(turn)
 
 
 if __name__ == '__main__':
