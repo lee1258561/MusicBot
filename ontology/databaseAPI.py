@@ -60,19 +60,28 @@ class Database():
     def search(self, slots):
         query = ""
         filters = ['artist', 'track']
+        url = ''
         for f in filters:
             if f in slots.keys():
                 query += '%s:%s ' % (f, slots[f])
+        if 'track' in slots.keys(): # if search for track
+            results = self.__sp.search(q=query, type='track')
+            items = results['tracks']['items']
+            if len(items) > 0:
+                #items = sorted(items,key=itemgetter('popularity'),reverse=True)
+                sentence = (u'幫你播 ' + items[0]['artists'][0]['name'] + u' 的 ' + items[0]['name'])
+                url = SPOTIFY_EMBED_PREFIX + items[0]['uri']
+            else:
+                sentence = (u'Sorry Not Found...')
 
-        results = self.__sp.search(q=query, type='track')
-        items = results['tracks']['items']
-        url = ''
-        if len(items) > 0:
-            #items = sorted(items,key=itemgetter('popularity'),reverse=True)
-            sentence = (u'幫你播 ' + items[0]['artists'][0]['name'] + u' 的 ' + items[0]['name'])
-            url = SPOTIFY_EMBED_PREFIX + items[0]['uri']
-        else:
-            sentence = (u'Sorry Not Found...')
+        else: # else search for artist
+            results = self.__sp.search(q=query, type='artist')
+            items = results['artists']['items']
+            if len(items) > 0: # found something
+                sentence = (u'幫你播 ' + items[0]['name'] + u' 的歌')
+                url = SPOTIFY_EMBED_PREFIX + items[0]['uri']
+            else:
+                sentence = (u'Sorry Not Found...')
         #print(sentence)
         return items, sentence, url
 
@@ -346,7 +355,7 @@ if __name__ == '__main__':
         #'album': args.album,
         #'track': args.track
     }
-    _, sent, url =  db.search({'track':u'no boundaries'})
+    _, sent, url =  db.search({'artist':u'owl city','track':'fireflies'})
     print sent, url
     print db.check_artist(u'red hot chili peppers')
     #print db.playlistCreate('seq2seq','test')
