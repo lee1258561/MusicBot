@@ -60,8 +60,9 @@ class Manager():
                                  None:[],'empty':[]}
         self.slot_prob_map = ['PAD','UNK',None,'track','playlist','artist','genre']
         self.positive_response = [u'是的',u'對',u'對啊',u'恩',u'沒錯',u'是啊',u'就是這樣',u'你真聰明',u'是',u'有',u'好啊']
-        self.negative_response = [u'不是',u'錯了',u'不對',u'不用',u'沒有',u'算了',u'不需要',u'不',u'不要',u'否',u'不曾',u'不知道']
+        self.negative_response = [u'不是',u'錯了',u'不對',u'不用',u'沒有',u'算了',u'不需要',u'不',u'不要',u'否',u'不知道']
         self.recommend_keyword = [u'相似',u'類似',u'推薦',u'像是',u'相關',u'風格']
+        self.last_track_keyword = [u'剛剛',u'上一首',u'正在',u'上首',u'剛才',u'再播一次']
         #action threshold:
         self.intent_upper_threshold = 0.95
         self.intent_lower_threshold = 0.9
@@ -260,13 +261,16 @@ class Manager():
         """ initialize state: state is depending on state and action and dialogue_end
             state_intent:
         """
+        self.last_track = None
+        self.last_artist = None
         self.state = {'intent':{'search':0.0,'recommend':0.0,'info':0.0,'playlistCreate':0.0,
                                  'playlistAdd':0.0,'playlistPlay':0.0,'playlistShow':0.0,'playlistTrack':0.0},
                       'slot':{'track':{},'artist':{},'genre':{},'playlist':{},'spotify_playlist':{}}}
-        if flag!=0 and self.confirmed_state['intent']=='info':
-            for slot_name in self.confirmed_state['slot']:
-                if self.confirmed_state['slot'][slot_name] is not None:
-                    self.state['slot'][slot_name][self.confirmed_state['slot'][slot_name]] = 1.16
+        if flag!=0 and self.confirmed_state['slot']['track'] is not None and self.confirmed_state['slot']['track'] != -1:
+            self.last_track = self.confirmed_state['slot']['track']
+            if self.confirmed_state['slot']['artist'] is not None:
+                self.last_artist = self.confirmed_state['slot']['artist']
+
 
         #'slot' = {'slot_name':{'slot_value':[prob]}}
         self.confirmed_state = {'intent':None,'slot':{'artist':None,'track':None,'genre':None,'playlist':None,'spotify_playlist':None}}
@@ -282,7 +286,11 @@ class Manager():
             State is depending on state and action and turr_end
         """
         last_action = self.action_history[-1] if len(self.action_history)>0 else None
-
+        if any(e in self.in_sent for e in self.last_track_keyword):
+            if self.last_track:
+                self.confirmed_state['slot']['track'] = self.last_track
+            if self.last_artist:
+                self.confirmed_state['slot']['artist'] = self.last_artist
         #if system have confirm intent value
         if self.confirmed_state['intent'] is not None:
             if last_action['action'] == 'question' and 'playlist' in last_action['slot']:
