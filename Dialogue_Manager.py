@@ -42,7 +42,7 @@ class Manager():
         self.DB = databaseAPI.Database(genre_map,spotify_playlist, spotify_account,verbose=verbose)
         self.NLUModel = test_multi_task_rnn.test_model(data_dir,train_dir)
         self.RULENLU = rule_based_NLU()
-        self.NLG = rule_based.NLG('nlg/NLG.txt')
+        self.NLG = rule_based.NLG('./nlg/NLG.txt')
         self.in_sent = ''
         self.in_sent_seg = []
         self.user_name = user_name
@@ -198,7 +198,8 @@ class Manager():
 
             if spotify_playlist is not None:
                 cur_action['action'] = 'response'
-                sentence,url = self.DB.playlistSpotify(spotify_playlist)               
+                sentence,url = self.DB.playlistSpotify(spotify_playlist)
+                self.confirmed_state['intent'] = 'playlistSpotify'
             elif self.confirmed_state['intent']=='playlistShow':
                 cur_action['action']='playlistShow'
                 sentence,playlistIDs = self.DB.playlistShow(self.user_name)
@@ -225,6 +226,7 @@ class Manager():
                 cur_action['action'] = 'info'
                 _,sentence = self.DB.recommend(s)
 
+            self.dialogue_end_track_url = url
             self.dialogue_end_sentence = sentence
             self.dialogue_end_type = self.confirmed_state['intent']
             cur_action['intent'] = self.confirmed_state['intent']

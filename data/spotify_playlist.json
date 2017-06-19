@@ -2,5 +2,13 @@
 	"sleep":["spotify:user:spotify:playlist:37i9dQZF1DWVsXD88oyxvI"],
 	"study":["spotify:user:spotify:playlist:37i9dQZF1DX2hAeSuWnj4k"],
 	"taiwan_popular":["spotify:user:spotifycharts:playlist:37i9dQZEVXbMnZEatlMSiu"],
-	"global_popular":["spotify:user:spotifycharts:playlist:37i9dQZEVXbMDoHDwVN2tF"]
+	"global_popular":["spotify:user:spotifycharts:playlist:37i9dQZEVXbMDoHDwVN2tF"],
+	"relax":["spotify:user:spotify:playlist:37i9dQZF1DX8gS5vh05dnc"],
+	"piano":["spotify:user:spotify:playlist:37i9dQZF1DX4sWSpwq3LiO"],
+	"japanese_popular":["spotify:user:spotifyjapan:playlist:3ykxMDAA0AYDTm0AMJHLb1"],
+    "korean_popular":["spotify:user:soundrop:playlist:2lMm566AF4wAcF2eLqzCtQ"],
+    "global_popular":["spotify:user:spotifycharts:playlist:37i9dQZEVXbMDoHDwVN2tF"],
+    "japanese_rock":["spotify:user:nordanix:playlist:2r1AC7ti2QhiErZFE9sXzi"],
+    "jazz":["spotify:user:spotify:playlist:37i9dQZF1DWVqfgj8NZEp1"],
+    "classical":["spotify:user:spotify:playlist:37i9dQZF1DWV0gynK7G6pD"]
 }

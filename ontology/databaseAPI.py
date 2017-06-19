@@ -164,10 +164,11 @@ class Database():
             sentence = u'為你推薦 '
             tracks = []
             for i,track in enumerate(items):
-                sentence += u'' + track['artists'][0]['name'] + u'的' + track['name'] + u'  '
+                sentence += u'' + track['artists'][0]['name'] + u'的' + track['name'] + u','
                 tracks.append(track['name'])
                 if i >=3:
                     break
+            sentence = sentence[:-1]
         else:
             tracks = []
             sentence = (u'No recommended songs...')

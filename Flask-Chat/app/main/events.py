@@ -5,24 +5,24 @@ from .. import socketio
 import time
 
 import sys
-sys.path.append('../')
+sys.path.append('./')
 from userSimulator import Simulator
 from Dialogue_Manager import Manager
 import argparse
 
 def optParser():
     parser = argparse.ArgumentParser(description='Vanilla action controller')
-    parser.add_argument('--nlu_data', default='../data/nlu_data/',type=str, help='data dir')
-    parser.add_argument('--model',default='../model_tmp/',type=str,help='model dir')
+    parser.add_argument('--nlu_data', default='./data/nlu_data/',type=str, help='data dir')
+    parser.add_argument('--model',default='./model_tmp/',type=str,help='model dir')
     parser.add_argument('--template_dir',default='../data/template/',\
             help='sentence template directory')
-    parser.add_argument('--data',default='../data/chinese_artist.json',\
+    parser.add_argument('--data',default='./data/chinese_artist.json',\
             help='artist-album-track json data')
-    parser.add_argument('--genre',default='../data/genres.json',\
+    parser.add_argument('--genre',default='./data/genres.json',\
             help='genres')
-    parser.add_argument('--genre_map',default='../data/genre_map.json',\
+    parser.add_argument('--genre_map',default='./data/genre_map.json',\
             type=str,help='genre_map.json path')
-    parser.add_argument('--spotify_playlist',default='../data/spotify_playlist.json',\
+    parser.add_argument('--spotify_playlist',default='./data/spotify_playlist.json',\
             type=str,help='spotify_playlist.json path')
     parser.add_argument('spotify_account', help='your spotify account')
     parser.add_argument('--random',action='store_true',help='whether to random user goal')
@@ -31,7 +31,7 @@ def optParser():
     return args
 
 args = optParser()
-simulator = Simulator('../data/template/','../data/chinese_artist.json','../data/genres.json', '../data/genre_map.json')
+simulator = Simulator('./data/template/','./data/chinese_artist.json','./data/genres.json', './data/genre_map.json')
 DM = Manager(args.nlu_data, args.model, args.genre_map, args.spotify_playlist, args.spotify_account, verbose=args.verbose)
 PLAY_TYPES = ['search', 'playlistPlay', 'playlistSpotify']
 
@@ -42,6 +42,7 @@ def joined(message):
     room = session.get('room')
     join_room(room)
     DM.state_init()
+    DM.user_name = session.get('name')
     emit('status', {'msg': session.get('name') + ' has entered the room.'}, room=room)
     emit('message', {'u_name':'Music Bot', 'msg': '你好，請問需要什麼服務？'}, room=room)
     emit('message', {'u_name':'Music Bot', 'msg': 'MusicBot提供的服務有：(1)聽歌：依據歌手及歌曲名稱找到你想要聽的歌 (2)推薦歌曲：依據歌手、歌曲名稱及曲風(古典、爵士、金屬、搖滾、吉他⋯⋯)推薦類似歌曲 (3)詢問歌手或歌曲資訊'}, room=room)
