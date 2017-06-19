@@ -413,7 +413,7 @@ class Manager():
 
  
     def action_to_sentence(self,action):
-        if action['action'] == 'question' and 'playlist' in action['slot']:
+        if action['action'] == 'question' and 'slot' in action and 'playlist' in action['slot']:
             sent = u'可以跟我說歌單的名稱嗎?(填歌單名稱就好)'
             return sent
         sent = self.NLG.decode(action)
