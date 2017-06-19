@@ -159,12 +159,14 @@ class Database():
             items = []
             print (u'All seeds are None')
 
-
+        urls = []
         if len(items) > 0:  # if items found
             sentence = u'為你推薦 '
             tracks = []
             for i,track in enumerate(items):
                 sentence += u'' + track['artists'][0]['name'] + u'的' + track['name'] + u','
+                url = SPOTIFY_EMBED_PREFIX + track['uri']
+                urls.append(url)
                 tracks.append(track['name'])
                 if i >=3:
                     break
@@ -173,7 +175,7 @@ class Database():
             tracks = []
             sentence = (u'No recommended songs...')
         #print(sentence)
-        return tracks, sentence
+        return tracks, sentence, urls
 
 
     def playlistCreate(self, username, playlist_name):

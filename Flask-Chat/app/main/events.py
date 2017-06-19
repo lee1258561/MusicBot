@@ -12,8 +12,8 @@ import argparse
 
 def optParser():
     parser = argparse.ArgumentParser(description='Vanilla action controller')
-    parser.add_argument('--nlu_data', default='./data/nlu_data/',type=str, help='data dir')
-    parser.add_argument('--model',default='./model_tmp/',type=str,help='model dir')
+    parser.add_argument('--nlu_data', default='./data/nlu_data_eng/',type=str, help='data dir')
+    parser.add_argument('--model',default='./model_tmp_eng/',type=str,help='model dir')
     parser.add_argument('--template_dir',default='../data/template/',\
             help='sentence template directory')
     parser.add_argument('--data',default='./data/chinese_artist.json',\
@@ -68,6 +68,11 @@ def text(message):
         emit('message', {'u_name':'Music Bot', 'msg': DM.dialogue_end_sentence}, room=room)
         if DM.dialogue_end_type in PLAY_TYPES  :
             emit('message',{'u_name':'Music Bot', 'toPlay':1, 'url':DM.dialogue_end_track_url})
+        if DM.dialogue_end_type == 'recommend':
+            emit('message',{'u_name':'Music Bot', 'toPlay':1, 'url':DM.dialogue_end_track_url[0]})
+            emit('message',{'u_name':'Music Bot', 'toPlay':1, 'url':DM.dialogue_end_track_url[1]})
+            emit('message',{'u_name':'Music Bot', 'toPlay':1, 'url':DM.dialogue_end_track_url[2]})
+
         print('\nCongratulation!!! You have ended one dialogue successfully\n')
         DM.state_init()
     

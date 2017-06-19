@@ -233,7 +233,7 @@ class Manager():
                 _,sentence = self.DB.info(s)
             elif self.confirmed_state['intent']=='recommend':
                 cur_action['action'] = 'info'
-                _,sentence = self.DB.recommend(s)
+                _,sentence,url = self.DB.recommend(s)
 
             self.dialogue_end_track_url = url
             self.dialogue_end_sentence = sentence
