@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import json
 import os 
 import pandas as pd
@@ -10,12 +11,12 @@ from copy import copy
 sys_intent = ['question', 'confirm']
 intents = ['search', 'recommend', 'info']
 intent_to_chinese = {'search':u'搜尋', 'recommend':u'推薦', 'info':u'查相關資訊'}
-slots = ['artist','track', 'genre']
-tokens = ['[a]','[t]','[g]']
-slot_token_map = {'artist':'[a]', 'track':'[t]', 'genre':'[g]'}
-token_slot_map = {'[i]': 'intent','[a]':'artist', '[t]':'track', '[g]':'genre'}
-input_dims = ['action', 'intent', 'artist','track', 'genre']
-input_default = ['none', 'none', 'none', 'none', 'none']
+slots = ['artist','track', 'genre', 'playlist']
+tokens = ['[a]','[t]','[g]', '[p]']
+slot_token_map = {'artist':'[a]', 'track':'[t]', 'genre':'[g]', 'playlist': '[p]'}
+token_slot_map = {'[i]': 'intent','[a]':'artist', '[t]':'track', '[g]':'genre', '[p]': 'playlist'}
+input_dims = ['action', 'intent', 'artist','track', 'genre', 'playlist']
+input_default = ['none', 'none', 'none', 'none', 'none', 'none']
 
 class NLG():
 	def __init__(self, template_path):
@@ -34,7 +35,8 @@ class NLG():
 		#print(self.frame_templates_pairs)
 
 	def decode(self, frame):
-		frame_s = [frame['action']]
+		print(frame)
+                frame_s = [frame['action']]
 		if 'intent' in frame:
 			frame_s.append(frame['intent'])
 		if frame['action'] == 'question' and 'intent' in frame:
@@ -52,7 +54,7 @@ class NLG():
 			print('Error: template not exist')
 			return None
 		template = random.choice(self.frame_templates_pairs[frame_s])
-
+                template = template.decode('utf-8')
 		for s in slot_to_replace:
 			print(s)
 			template = template.replace(slot_token_map[s], frame['slot'][s])
