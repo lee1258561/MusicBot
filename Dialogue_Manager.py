@@ -9,6 +9,8 @@ from rnn_nlu import data_utils, test_multi_task_rnn
 from rule_based_NLU import *
 from userSimulator import Simulator
 from policy_network import policy_network
+from nlg import rule_based
+
 import numpy as np
 
 def optParser():
@@ -40,6 +42,7 @@ class Manager():
         self.DB = databaseAPI.Database(genre_map,spotify_playlist, spotify_account,verbose=verbose)
         self.NLUModel = test_multi_task_rnn.test_model(data_dir,train_dir)
         self.RULENLU = rule_based_NLU()
+        self.NLG = rule_based.NLG('nlg/NLG.txt')
         self.in_sent = ''
         self.in_sent_seg = []
         self.user_name = user_name
@@ -393,6 +396,10 @@ class Manager():
 
  
     def action_to_sentence(self,action):
+        sent = self.NLG.decode(action)
+        if sent != None:
+            return sent
+        
         intent_to_chinese = {'search':u'聽歌','recommend':u'推薦歌曲', 'info':u'詢問歌曲資訊',
                              'playlistCreate':u'建立歌單', 'playlistAdd':u'新增歌曲到歌單',
                              'playlistPlay':u'播放歌單','playlistShow':u'列出使用者歌單',
