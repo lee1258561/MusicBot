@@ -14,9 +14,13 @@ SCOPE = ('playlist-modify-private playlist-read-private playlist-modify-public '
 SPOTIFY_EMBED_PREFIX = 'https://open.spotify.com/embed?uri='
 
 class Database():
-    def __init__(self, genre_map_path, spotify_playlist_map_path,verbose=False):
+    def __init__(self, genre_map_path, spotify_playlist_map_path, spotify_id,verbose=False):
         client_credentials_manager = SpotifyClientCredentials()
         self.__sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+        token = spotipy.util.prompt_for_user_token(spotify_id, SCOPE)
+        self.__sp = spotipy.Spotify(auth=token)
+        
+        self.spotify_id = spotify_id
         self.__sp.trace = verbose #NOTE dubug
 
         with open(genre_map_path,'r') as f:
@@ -174,42 +178,54 @@ class Database():
     def playlistCreate(self, username, playlist_name):
         url = ''
         sentence = ''
-        if self.__check_user_exist(username):
-            token = spotipy.util.prompt_for_user_token(username, SCOPE)
-            self.__sp = spotipy.Spotify(auth=token)
-            playlists = self.__sp.user_playlist_create(username, playlist_name, public=False)
-            sentence = u'為您新增播放清單 '+ playlist_name
-            url = SPOTIFY_EMBED_PREFIX + playlists['uri']
+        
+        token = spotipy.util.prompt_for_user_token(self.spotify_id, SCOPE)
+        self.__sp = spotipy.Spotify(auth=token)
+
+        playlist_name_db = self.__playlist_name2dbname(username, playlist_name)
+        playlists = self.__sp.user_playlist_create(self.spotify_id, playlist_name_db, public=False)
+        sentence = u'為您新增播放清單 '+ playlist_name
+        url = SPOTIFY_EMBED_PREFIX + playlists['uri']
+
         return sentence, url
 
 
     def playlistAdd(self, username, playlist_name, slots):
         sentence = ''
         url = ''
-        if self.__check_user_exist(username):
-            token = spotipy.util.prompt_for_user_token(username, SCOPE)
-            self.__sp = spotipy.Spotify(auth=token)
-            playlist_id = self.__get_playlist_id(username, playlist_name)
-            items, _, _ = self.search(slots)
-            if len(items) > 0:
-                tracks = [ items[0]['id'] ]
-                self.__sp.user_playlist_add_tracks(username, playlist_id, tracks)
-                sentence = u'為您將 ' + slots['track'] + u' 加入清單 ' + playlist_name
-                uri = self.__playlist_id2uri(username, playlist_id)
-                url = SPOTIFY_EMBED_PREFIX + uri
+
+        token = spotipy.util.prompt_for_user_token(self.spotify_id, SCOPE)
+        self.__sp = spotipy.Spotify(auth=token)
+        playlist_id = self.__get_playlist_id(username, playlist_name)
+        items, _, _ = self.search(slots)
+        if len(items) > 0 and len(playlist_id) > 0:
+            tracks = [ items[0]['id'] ]
+            self.__sp.user_playlist_add_tracks(self.spotify_id, playlist_id, tracks)
+            sentence = u'為您將 ' + slots['track'] + u' 加入清單 ' + playlist_name
+            uri = self.__playlist_id2uri(username, playlist_id)
+            url = SPOTIFY_EMBED_PREFIX + uri
+        
+        # error handling
+        if len(items) == 0: # if no track found
+            sentence += u'很抱歉找不到此歌曲 '
+        if len(playlist_id) == 0: # if no playlist found
+            sentence += u'沒有播放清單 ' + playlist_name
+
         return sentence, url
 
     def playlistPlay(self, username, playlist_name):
         url = ''
         sentence = ''
-        if self.__check_user_exist(username):
-            token = spotipy.util.prompt_for_user_token(username, SCOPE)
-            self.__sp = spotipy.Spotify(auth=token)
-            playlist_id = self.__get_playlist_id(username, playlist_name)
-            if len(playlist_id) > 0: # if found this playlist
-                sentence = u'為您播放清單 ' + playlist_name
-                uri = self.__playlist_id2uri(username, playlist_id)
-                url = SPOTIFY_EMBED_PREFIX + uri
+        token = spotipy.util.prompt_for_user_token(self.spotify_id, SCOPE)
+        self.__sp = spotipy.Spotify(auth=token)
+        playlist_id = self.__get_playlist_id(username, playlist_name)
+        if len(playlist_id) > 0: # if found this playlist
+            sentence = u'為您播放清單 ' + playlist_name
+            uri = self.__playlist_id2uri(username, playlist_id)
+            url = SPOTIFY_EMBED_PREFIX + uri
+        else: # if no playlist found
+            sentence = u'沒有播放清單 ' + playlist_name
+
         return sentence, url
 
     def playlistSpotify(self, playlist_name):
@@ -229,26 +245,39 @@ class Database():
         playlists = self.__get_all_playlists(username)
         playlist_ids = [p['id'] for p in playlists]
         for p in playlists:
-            sentence += ' ' + p['name'] + ','
+            if p['name'] is not None: # handle if no playlist
+                sentence += ' ' + self.__playlist_prefix_remove(username, p['name']) + ','
         sentence = sentence[:-1]
+        if len(sentence) > 0: # if playlist found
+            sentence = u'您的播放清單有: ' + sentence
+        else:
+            sentence = u'您目前沒有任何播放清單'
         return sentence, playlist_ids
 
     def playlistTrack(self, username, playlist_name):
         ''' Show all the tracks in this playlist '''
         sentence = ''
         url = ''
-        if self.__check_user_exist(username):
-            token = spotipy.util.prompt_for_user_token(username, SCOPE)
-            self.__sp = spotipy.Spotify(auth=token)
-            playlist_id = self.__get_playlist_id(username, playlist_name)
-            track_items = self.__sp.user_playlist(username, playlist_id)['tracks']['items']
+
+        token = spotipy.util.prompt_for_user_token(self.spotify_id, SCOPE)
+        self.__sp = spotipy.Spotify(auth=token)
+
+        playlist_id = self.__get_playlist_id(username, playlist_name)
+        if len(playlist_id) > 0: # if playlist found
+            track_items = self.__sp.user_playlist(self.spotify_id, playlist_id)['tracks']['items']
             tracks = [ t['track']['name'] for t in track_items]
             for t in tracks:
                 sentence += ' ' +t + ','
             sentence = sentence[:-1]
-
+            if len(sentence) == 0:
+                sentence = u'播放清單 ' + playlist_name + u' 目前沒有任何歌曲'
+            else:
+                sentence = u'播放清單 ' + playlist_name + u' 有歌曲: ' + sentence
+    
             uri = self.__playlist_id2uri(username,playlist_id)
             url = SPOTIFY_EMBED_PREFIX + uri
+        else: # no this playlist
+            sentence = u'沒有播放清單 ' + playlist_name
 
         return sentence, url
 
@@ -257,10 +286,13 @@ class Database():
         offset = 0
         playlists = []
         if self.__check_user_exist(username):
-            token = spotipy.util.prompt_for_user_token(username, SCOPE)
+            token = spotipy.util.prompt_for_user_token(self.spotify_id, SCOPE)
             self.__sp = spotipy.Spotify(auth=token)
             while True:
-                playlists_cur = self.__sp.user_playlists(username, offset=offset, limit=50)['items']
+                playlists_cur = self.__sp.user_playlists(self.spotify_id,
+                                offset=offset, limit=50)['items']
+                playlists_cur = [p for p in playlists_cur
+                                 if self.__playlist_prefix_user_check(username, p['name'])]
                 playlists += playlists_cur
                 if len(playlists_cur) < 50:
                     break
@@ -270,13 +302,23 @@ class Database():
 
     def __get_playlist_id(self, username, playlist_name):
         playlists = self.__get_all_playlists(username)
+        playlist_name_db = self.__playlist_name2dbname(username, playlist_name)
         playlist_id = ''
         for p in playlists:
-            if p['name'] == playlist_name:
+            if p['name'] == playlist_name_db:
                 playlist_id = p['id']
                 break
         return playlist_id
+    
 
+    def __playlist_name2dbname(self, username, playlist_name):
+        return username + '@' + playlist_name
+
+    def __playlist_prefix_user_check(self, username, playlist_name):
+        return (username + '@') == playlist_name[:len(username+'@')]
+
+    def __playlist_prefix_remove(self, username, playlist_name):
+        return playlist_name[len(username+'@'):]
 
     def __playlist_id2uri(self, username, playlist_id):
         return 'spotify:user:' + username + ':playlist:' + playlist_id
@@ -349,18 +391,20 @@ if __name__ == '__main__':
     parser.add_argument('--track', type=str, help="Track to query.")
     args = parser.parse_args()
 
-    db = Database('../data/genre_map.json', '../data/spotify_playlist.json')
+    db = Database('../data/genre_map.json', '../data/spotify_playlist.json', 'seq2seq')
     slots = {
         'artist': args.artist,
         #'album': args.album,
         #'track': args.track
     }
     _, sent, url =  db.search({'artist':u'owl city','track':'fireflies'})
-    print sent, url
-    print db.check_artist(u'red hot chili peppers')
-    #print db.playlistCreate('seq2seq','test')
-    #print  db.playlistAdd('seq2seq','test', {'track':'no boundaries'})
-    #print (db.playlistPlay('seq2seq','test'))
-    #print (db.playlistSpotify('taiwan_popular'))
-    #print (db.playlistShow('seq2seq'))
-    #print (db.playlistTrack('seq2seq', 'motivated'))
+    #print sent, url
+    #print db.check_artist(u'red hot chili peppers')
+    #print db.playlistCreate('asdf','test2')[0]
+    #print db.playlistAdd('asdf','test2', {'track':'no boundaries'})[0]
+    #print (db.playlistPlay('asdf','test2'))[0]
+    #print (db.playlistSpotify('taiwan_popular'))[0]
+    #print (db.playlistShow('asdf'))[0]
+    #print (db.playlistTrack('asdf', 'test2'))[0]
+
+
