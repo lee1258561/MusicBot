@@ -25,6 +25,7 @@ def optParser():
             type=str,help='genre_map.json path')
     parser.add_argument('--spotify_playlist',default='./data/spotify_playlist.json',\
             type=str,help='spotify_playlist.json path')
+    parser.add_argument('spotify_account', help='your spotify account')
     parser.add_argument('--random',action='store_true',help='whether to random user goal')
     parser.add_argument('--stdin',default=False,action='store_true',help='stdin test, enter sentence')
     parser.add_argument('--auto_test',default=False,action='store_true',help='auto test, enter user goal')
@@ -35,8 +36,8 @@ def optParser():
 
 
 class Manager():
-    def __init__(self,data_dir,train_dir, genre_map,spotify_playlist, verbose=False,user_name='default_user'):
-        self.DB = databaseAPI.Database(genre_map,spotify_playlist, verbose=verbose)
+    def __init__(self,data_dir,train_dir, genre_map,spotify_playlist, spotify_account, verbose=False,user_name='default_user'):
+        self.DB = databaseAPI.Database(genre_map,spotify_playlist, spotify_account,verbose=verbose)
         self.NLUModel = test_multi_task_rnn.test_model(data_dir,train_dir)
         self.RULENLU = rule_based_NLU()
         self.in_sent = ''
@@ -50,8 +51,8 @@ class Manager():
                                  'playlistCreate':['playlist'],
                                  'playlistAdd':['track','artist',
                                  'playlist'],'playlistPlay':['playlist'],
-                                 'playlistShow':['playlist'],
-                                 'playlistTrack':[],
+                                 'playlistShow':[],
+                                 'playlistTrack':['playlist'],
                                  'all':['artist','track','genre','playlist','spotify_playlist'],
                                  None:[],'empty':[]}
         self.slot_prob_map = ['PAD','UNK',None,'track','playlist','artist','genre']
@@ -495,7 +496,8 @@ def auto_test(args):
 
 def stdin_test(args):
 
-    DM = Manager(args.nlu_data , args.model, args.genre_map, args.spotify_playlist,verbose=args.verbose)
+    DM = Manager(args.nlu_data , args.model, args.genre_map, args.spotify_playlist,
+                 args.spotify_account, verbose=args.verbose)
 
     turn = 0
     while True:
