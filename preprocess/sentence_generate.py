@@ -24,6 +24,7 @@ def opt_parse():
             'Slot & intent data generate')
     parser.add_argument('template',help='sentence template')
     parser.add_argument('data',help='artist-album-track json data')
+    parser.add_argument('data_english', help='english artist-album-track json data')
     parser.add_argument('genre',help='genres')
     parser.add_argument('playlist_names',help='playlist names')
     parser.add_argument('-output',default='Train',help='output filename prefix')
@@ -101,6 +102,12 @@ def fill_template(data_artist,data_sent,genres, playlist_names, args_output, int
 def sent_gen(args):
     with open(args.data,'r') as f:
         data_artist = json.load(f)
+    with open(args.data_english,'r') as f:
+        data_artist_english = json.load(f)
+    for artist in  data_artist_english:
+        if artist not in data_artist:
+            data_artist[artist] = data_artist_english[artist]
+
     with open(args.genre,'r') as f:
         genre_list=json.load(f)
     data_sent = pd.read_csv(args.template)
