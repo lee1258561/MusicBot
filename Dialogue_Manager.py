@@ -66,7 +66,7 @@ class Manager():
         self.intent_upper_threshold = 0.95
         self.intent_lower_threshold = 0.9
         self.slot_uppser_threshold = 1.15
-        self.slot_lower_threshold = 0.7
+        self.slot_lower_threshold = 0.9
 
         #if cycle_num > max_cycle_num, end the dialogue
         self.max_cycle_num = 10
@@ -128,14 +128,18 @@ class Manager():
             else:
                 self.state['slot'][slot_name][e] = max_prob
 
+        total_intent_prob = 0.0
         for intent in self.NLU_result['intent']:
             if intent in self.intent_slot_dict:
+                total_intent_prob += self.NLU_result['intent'][intent]
                 if intent in self.state['intent']:
                     self.state['intent'][intent] += self.NLU_result['intent'][intent]
                 else:
                     self.state['intent'][intent] = self.NLU_result['intent'][intent]
         
         for slot_name in self.RULE_result:
+            if slot_name=='track' and total_intent_prob<0.9 and self.confirmed_state['intent'] is None:
+                continue
             for e in self.RULE_result[slot_name]:
                 for slot_name2 in self.state['slot']:
                     if slot_name != slot_name2:
@@ -233,7 +237,7 @@ class Manager():
                 _,sentence = self.DB.info(s)
             elif self.confirmed_state['intent']=='recommend':
                 cur_action['action'] = 'info'
-                _,sentence,url = self.DB.recommend(s)
+                _,sentence = self.DB.recommend(s)
 
             self.dialogue_end_track_url = url
             self.dialogue_end_sentence = sentence

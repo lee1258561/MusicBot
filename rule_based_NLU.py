@@ -58,12 +58,12 @@ class rule_based_NLU():
 
         for track in self.tracks_list:
             if track in input_sent:
-                if len(track)>1:
+                if len(track)>1 and track not in cur_tracks:
                     cur_tracks.append(track)
         if len(cur_tracks)>0:
             result['track'] = {}
             for t in cur_tracks:
-                result['track'][t] = 1.1 / (1 + 0.1*(len(cur_tracks)-1.0))
+                result['track'][t] = 1.1 / (1.0 + 0.3*(len(cur_tracks)-1.0))
 
         for genre in self.genres_list:
             if genre in input_sent:
