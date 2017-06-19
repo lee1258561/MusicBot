@@ -190,8 +190,8 @@ confirm info artist
 
 confirm track   
 再確認一次，請問你是否曾填入歌曲名稱：[t]？ 
-再確認一次，是選[t]嗎？
-你是選[t]對嗎？
+再確認一次，歌曲是選[t]嗎？
+你歌曲是選[t]對嗎？
 確認一下，你選的歌曲是：[t]？
 
 confirm artist track
@@ -267,7 +267,7 @@ confirm info genre
 confirm playlist
 請問你是否填入了歌單名稱：[p]
 你選的歌單是[p]嗎？
-確認一下，你是選了[p]歌單嗎？
+確認一下，你歌單是選了[p]嗎？
 
 confirm track playlist
 請問你是說[p]歌單裡的[t]嗎？

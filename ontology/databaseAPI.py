@@ -68,24 +68,28 @@ class Database():
         for f in filters:
             if f in slots.keys():
                 query += '%s:%s ' % (f, slots[f])
-        if 'track' in slots.keys(): # if search for track
-            results = self.__sp.search(q=query, type='track')
-            items = results['tracks']['items']
-            if len(items) > 0:
-                #items = sorted(items,key=itemgetter('popularity'),reverse=True)
-                sentence = (u'幫你播 ' + items[0]['artists'][0]['name'] + u' 的 ' + items[0]['name'])
-                url = SPOTIFY_EMBED_PREFIX + items[0]['uri']
-            else:
-                sentence = (u'Sorry Not Found...')
+        try:
+            if 'track' in slots.keys(): # if search for track
+                results = self.__sp.search(q=query, type='track')
+                items = results['tracks']['items']
+                if len(items) > 0:
+                    #items = sorted(items,key=itemgetter('popularity'),reverse=True)
+                    sentence = (u'幫你播 ' + items[0]['artists'][0]['name'] + u' 的 ' + items[0]['name'])
+                    url = SPOTIFY_EMBED_PREFIX + items[0]['uri']
+                else:
+                    sentence = (u'Sorry Not Found...')
 
-        else: # else search for artist
-            results = self.__sp.search(q=query, type='artist')
-            items = results['artists']['items']
-            if len(items) > 0: # found something
-                sentence = (u'幫你播 ' + items[0]['name'] + u' 的歌')
-                url = SPOTIFY_EMBED_PREFIX + items[0]['uri']
-            else:
-                sentence = (u'Sorry Not Found...')
+            else: # else search for artist
+                results = self.__sp.search(q=query, type='artist')
+                items = results['artists']['items']
+                if len(items) > 0: # found something
+                    sentence = (u'幫你播 ' + items[0]['name'] + u' 的歌')
+                    url = SPOTIFY_EMBED_PREFIX + items[0]['uri']
+                else:
+                    sentence = (u'Sorry Not Found...')
+        except spotipy.client.SpotifyException:
+            items = []
+            sentence = u'No search query'
         #print(sentence)
         return items, sentence, url
 
