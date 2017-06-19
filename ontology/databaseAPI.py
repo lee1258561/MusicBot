@@ -91,7 +91,18 @@ class Database():
 
     def info(self, slots):
         ### TODO list more songs
-        if 'artist' in slots:
+        if 'track' in slots:
+            items = self.__get_track(slots['track'])
+            if len(items) > 0:
+                tracks = items[0]
+                infos = {'artist':tracks['artists'][0]['name'],\
+                        'album':tracks['album']['name'], 'track':tracks['name']}
+                sentence = (u'這是'+infos['artist']+u'的歌曲 專輯:'+ infos['album']+u' 歌曲:'+infos['track'])
+            else:
+                sentence = (u'Sorry Not Found...')
+                infos = {}
+
+        elif 'artist' in slots:
             items = self.__get_artist(slots['artist'])
             if len(items) > 0:
                 artist = items[0]
@@ -121,16 +132,6 @@ class Database():
                 sentence = (u'Sorry Not Found...')
                 infos = {}
 
-        elif 'track' in slots:
-            items = self.__get_track(slots['track'])
-            if len(items) > 0:
-                tracks = items[0]
-                infos = {'artist':tracks['artists'][0]['name'],\
-                        'album':tracks['album']['name'], 'track':tracks['name']}
-                sentence = (u'這是'+infos['artist']+u'的歌曲 專輯:'+ infos['album']+u' 歌曲:'+infos['track'])
-            else:
-                sentence = (u'Sorry Not Found...')
-                infos = {}
 
         return infos, sentence
 
