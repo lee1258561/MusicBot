@@ -19,7 +19,7 @@ class rule_based_NLU():
         self.genres_list = json.load(open('data/genre_map.json')).keys()
 
         self.playlist_map = {'sleep':[u'想睡覺',u'休息',u'睡眠',u'晚上',u'睡前'],
-                             'taiwan_popular':[u'熱門',u'流行',u'火紅',u'最多人',u'都在聽'],
+                             'taiwan_popular':[u'熱門',u'流行',u'火紅',u'最多人',u'都在聽',u'最近'],
                              'study':[u'讀書',u'考試',u'唸書',u'看書'],
                              'piano':[u'鋼琴'],
                              'relax':[u'放鬆',u'純音樂',u'抒壓'],

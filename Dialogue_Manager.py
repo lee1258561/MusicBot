@@ -61,6 +61,7 @@ class Manager():
         self.slot_prob_map = ['PAD','UNK',None,'track','playlist','artist','genre']
         self.positive_response = [u'是的',u'對',u'對啊',u'恩',u'沒錯',u'是啊',u'就是這樣',u'你真聰明',u'是',u'有',u'好啊']
         self.negative_response = [u'不是',u'錯了',u'不對',u'不用',u'沒有',u'算了',u'不需要',u'不',u'不要',u'否',u'不曾',u'不知道']
+        self.recommend_keyword = [u'相似',u'類似',u'推薦',u'像是',u'相關',u'風格']
         #action threshold:
         self.intent_upper_threshold = 0.95
         self.intent_lower_threshold = 0.9
@@ -68,7 +69,7 @@ class Manager():
         self.slot_lower_threshold = 0.7
 
         #if cycle_num > max_cycle_num, end the dialogue
-        self.max_cycle_num = 12
+        self.max_cycle_num = 10
 
         self.dialogue_end_track_url = ''
         self.dialogue_end_type = ''
@@ -156,6 +157,14 @@ class Manager():
         """
         do confirm if there is any prob > lower_threshold else do question to ask missing slot
         """
+        if self.confirmed_state['intent'] is not None and \
+           'playlist' in self.confirmed_state['intent'] and \
+           'Show' not in self.confirmed_state['intent'] and \
+           self.confirmed_state['slot']['playlist'] is None:
+            cur_action = {'action':'question','slot':{'playlist':''}}
+            self.action_history.append(cur_action)
+            return cur_action
+
         if self.confirmed_state['intent']:
             slot = {}
             for slot_name in self.intent_slot_dict[self.confirmed_state['intent']]:
@@ -196,7 +205,7 @@ class Manager():
                 if self.confirmed_state['slot'][slot_name] != None and self.confirmed_state['slot'][slot_name] != -1:
                     s[slot_name] = self.confirmed_state['slot'][slot_name]
 
-            if spotify_playlist is not None:
+            if spotify_playlist is not None and not self.rec_in_sent:
                 cur_action['action'] = 'response'
                 sentence,url = self.DB.playlistSpotify(spotify_playlist)
                 self.confirmed_state['intent'] = 'playlistSpotify'
@@ -259,7 +268,8 @@ class Manager():
         self.confirmed_state = {'intent':None,'slot':{'artist':None,'track':None,'genre':None,'playlist':None,'spotify_playlist':None}}
         self.action_history = []
         self.dialogue_end = False
-        self.cycle_num = 0 
+        self.cycle_num = 0
+        self.rec_in_sent = False
 
 
     def state_tracking(self):
@@ -271,7 +281,9 @@ class Manager():
 
         #if system have confirm intent value
         if self.confirmed_state['intent'] is not None:
-            if last_action['action'] == 'question' and any(e in self.in_sent[:3] for e in self.negative_response):
+            if last_action['action'] == 'question' and 'playlist' in last_action['slot']:
+                self.confirmed_state['slot']['playlist'] = self.in_sent.strip()
+            elif last_action['action'] == 'question' and any(e in self.in_sent[:3] for e in self.negative_response):
                 if 'slot' in last_action:
                     for slot_name in last_action['slot']:
                         self.confirmed_state['slot'][slot_name] = -1.0
@@ -314,6 +326,8 @@ class Manager():
                 else:
                     self.update_state_with_NLU()
 
+        if any(e in self.in_sent for e in self.recommend_keyword):
+            self.rec_in_sent = True
 
         self.max_intent_prob = 0.0
         self.max_intent = ''
@@ -386,7 +400,8 @@ class Manager():
             print(' ',end='')
         print('\n')
         print('action:',end='')
-        print(self.action_history[-1]['action'])
+        if len(self.action_history)>0:
+            print(self.action_history[-1]['action'])
         if 'intent' in self.action_history[-1]:
             print('action intent:',self.action_history[-1]['intent'],end=' \n')
         if 'slot' in self.action_history[-1]:
@@ -398,6 +413,9 @@ class Manager():
 
  
     def action_to_sentence(self,action):
+        if action['action'] == 'question' and 'playlist' in action['slot']:
+            sent = u'可以跟我說歌單的名稱嗎?(填歌單名稱就好)'
+            return sent
         sent = self.NLG.decode(action)
         if sent != None:
             return sent
