@@ -1,6 +1,7 @@
 #!/bin/bash
 
-TEMPLATES=("search.csv" "recommend.csv" "info.csv" "neutral.csv")
+TEMPLATES=("search.csv" "recommend.csv" "info.csv" "neutral.csv" "playlistCreate.csv"\
+		   "playlistAdd.csv" "playlistPlay.csv" "playlistShow.csv" "playlistTrack.csv" "playlistSpotify.csv")
 DATA_DIR="../data/"
 TEMPLATE_DIR="../data/template/"
 OUT_PATH="../data/nlu_data/"
@@ -17,7 +18,7 @@ echo "make dataset ..."
 for i in ${TEMPLATES[@]}
 do
 	python2 sentence_generate.py ${TEMPLATE_DIR}$i ${DATA_DIR}/chinese_artist.json ${DATA_DIR}/genre_map.json\
-		--nb_per_template $NB_PER_TEMP\
+		${DATA_DIR}/playlistNames.csv --nb_per_template $NB_PER_TEMP\
 		-o $OUT_PATH/Train
 done
 
