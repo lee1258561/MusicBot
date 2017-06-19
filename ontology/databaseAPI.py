@@ -106,7 +106,7 @@ class Database():
             items = self.__get_artist(slots['artist'])
             if len(items) > 0:
                 artist = items[0]
-                album = self.____get_artist_albums(artist)[0]
+                album = self.__get_artist_albums(artist)[0]
                 tracks = self.__show_album_tracks(album)
                 tracks = [tracks[i]['name'] for i in range(len(tracks))]
 
