@@ -1,0 +1,11 @@
+_UNK
+info
+neutral
+playlistAdd
+playlistCreate
+playlistPlay
+playlistShow
+playlistSpotify
+playlistTrack
+recommend
+search
