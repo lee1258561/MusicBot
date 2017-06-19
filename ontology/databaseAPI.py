@@ -197,11 +197,17 @@ class Database():
         token = spotipy.util.prompt_for_user_token(self.spotify_id, SCOPE)
         self.__sp = spotipy.Spotify(auth=token)
         playlist_id = self.__get_playlist_id(username, playlist_name)
+
+        # handle no track slot bulshit
+        if 'track' not in slots:
+            sentence = u'請填入歌曲名稱'
+            return sentence, url
+
         items, _, _ = self.search(slots)
         if len(items) > 0 and len(playlist_id) > 0:
             tracks = [ items[0]['id'] ]
             self.__sp.user_playlist_add_tracks(self.spotify_id, playlist_id, tracks)
-            sentence = u'為您將 ' + slots['track'] + u' 加入清單 ' + playlist_name
+            sentence = u'為您將 ' + items[0]['artists'][0]['name']+ u' 的 ' + items[0]['name'] + u' 加入清單 ' + playlist_name
             uri = self.__playlist_id2uri(username, playlist_id)
             url = SPOTIFY_EMBED_PREFIX + uri
         
@@ -401,7 +407,7 @@ if __name__ == '__main__':
     #print sent, url
     #print db.check_artist(u'red hot chili peppers')
     #print db.playlistCreate('asdf','test2')[0]
-    #print db.playlistAdd('asdf','test2', {'track':'no boundaries'})[0]
+    #print db.playlistAdd('asdf','test2', {'artist':u'林正','track':u'我不是他'})[0]
     #print (db.playlistPlay('asdf','test2'))[0]
     #print (db.playlistSpotify('taiwan_popular'))[0]
     #print (db.playlistShow('asdf'))[0]

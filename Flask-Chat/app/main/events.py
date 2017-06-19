@@ -22,6 +22,9 @@ def optParser():
             help='genres')
     parser.add_argument('--genre_map',default='../data/genre_map.json',\
             type=str,help='genre_map.json path')
+    parser.add_argument('--spotify_playlist',default='../data/spotify_playlist.json',\
+            type=str,help='spotify_playlist.json path')
+    parser.add_argument('spotify_account', help='your spotify account')
     parser.add_argument('--random',action='store_true',help='whether to random user goal')
     parser.add_argument('-v',dest='verbose',default=False,action='store_true',help='verbose')
     args = parser.parse_args()
@@ -29,7 +32,8 @@ def optParser():
 
 args = optParser()
 simulator = Simulator('../data/template/','../data/chinese_artist.json','../data/genres.json', '../data/genre_map.json')
-DM = Manager(args.nlu_data, args.model, args.genre_map, verbose=args.verbose)
+DM = Manager(args.nlu_data, args.model, args.genre_map, args.spotify_playlist, args.spotify_account, verbose=args.verbose)
+PLAY_TYPES = ['search', 'playlistPlay', 'playlistSpotify']
 
 @socketio.on('joined', namespace='/chat')
 def joined(message):
@@ -57,11 +61,11 @@ def text(message):
     DM.print_current_state() # Debug
 
     DM_response = DM.action_to_sentence(action)
-    if DM_response is not None:
+    if len(DM_response) > 0:
         emit('message', {'u_name':'Music Bot', 'msg': DM.action_to_sentence(action)}, room=room)
     if DM.dialogue_end:
         emit('message', {'u_name':'Music Bot', 'msg': DM.dialogue_end_sentence}, room=room)
-        if DM.dialogue_end_type == 'search':
+        if DM.dialogue_end_type in PLAY_TYPES  :
             emit('message',{'u_name':'Music Bot', 'toPlay':1, 'url':DM.dialogue_end_track_url})
         print('\nCongratulation!!! You have ended one dialogue successfully\n')
         DM.state_init()
