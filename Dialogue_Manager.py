@@ -62,10 +62,10 @@ class Manager():
         self.positive_response = [u'是的',u'對',u'對啊',u'恩',u'沒錯',u'是啊',u'就是這樣',u'你真聰明',u'是',u'有',u'好啊']
         self.negative_response = [u'不是',u'錯了',u'不對',u'不用',u'沒有',u'算了',u'不需要',u'不',u'不要',u'否',u'不知道']
         self.recommend_keyword = [u'相似',u'類似',u'推薦',u'像是',u'相關',u'風格']
-        self.last_track_keyword = [u'剛剛',u'上一首',u'正在',u'上首',u'剛才',u'再播一次']
+        self.last_track_keyword = [u'剛剛',u'上一首',u'正在',u'上首',u'剛才',u'再播']
         #action threshold:
-        self.intent_upper_threshold = 0.95
-        self.intent_lower_threshold = 0.9
+        self.intent_upper_threshold = 0.85
+        self.intent_lower_threshold = 0.8
         self.slot_uppser_threshold = 1.15
         self.slot_lower_threshold = 0.9
 
