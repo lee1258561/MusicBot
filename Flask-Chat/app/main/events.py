@@ -45,7 +45,7 @@ def joined(message):
     DM.user_name = session.get('name')
     emit('status', {'msg': session.get('name') + ' has entered the room.'}, room=room)
     emit('message', {'u_name':'Music Bot', 'msg': '你好，請問需要什麼服務？'}, room=room)
-    emit('message', {'u_name':'Music Bot', 'msg': 'MusicBot提供的服務有：(1)聽歌：依據歌手及歌曲名稱找到你想要聽的歌 (2)推薦歌曲：依據歌手、歌曲名稱及曲風(古典、爵士、金屬、搖滾、吉他⋯⋯)推薦類似歌曲 (3)詢問歌手或歌曲資訊'}, room=room)
+    emit('message', {'u_name':'Music Bot', 'msg': 'MusicBot提供的服務有：(1)聽歌：依據歌手及歌曲名稱找到你想要聽的歌 (2)推薦歌曲：依據歌手、歌曲名稱及曲風(古典、爵士、金屬、搖滾、吉他⋯⋯)推薦類似歌曲 (3)詢問歌手或歌曲資訊 (4)建立播放清單及新增歌曲 (5)播放自訂或公共播放清單'}, room=room)
 
 
 @socketio.on('text', namespace='/chat')
