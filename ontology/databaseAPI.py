@@ -335,7 +335,7 @@ class Database():
         return playlist_name[len(username+'@'):]
 
     def __playlist_id2uri(self, username, playlist_id):
-        return 'spotify:user:' + username + ':playlist:' + playlist_id
+        return 'spotify:user:' + self.spotify_id + ':playlist:' + playlist_id
 
     def __show_album_tracks(self, album):
         tracks = []
@@ -413,7 +413,7 @@ if __name__ == '__main__':
     }
     _, sent, url =  db.search({'artist':u'owl city','track':'fireflies'})
     #print sent, url
-    #print db.check_artist(u'red hot chili peppers')
+    print db.check_artist(u'red hot chili peppers')
     #print db.playlistCreate('asdf','test2')[0]
     #print db.playlistAdd('asdf','test2', {'artist':u'林正','track':u'我不是他'})[0]
     #print (db.playlistPlay('asdf','test2'))[0]

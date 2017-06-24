@@ -64,7 +64,7 @@ class Manager():
         self.recommend_keyword = [u'相似',u'類似',u'推薦',u'像是',u'相關',u'風格']
         self.last_track_keyword = [u'剛剛',u'上一首',u'正在',u'上首',u'剛才',u'再播']
         #action threshold:
-        self.intent_upper_threshold = 0.85
+        self.intent_upper_threshold = 0.84
         self.intent_lower_threshold = 0.8
         self.slot_uppser_threshold = 1.15
         self.slot_lower_threshold = 0.9
