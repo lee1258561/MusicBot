@@ -1,5 +1,6 @@
 # MusicBot
-  ICB MusicBot
+  ICB MusicBot  
+  [GitHub Page](https://yvchen.github.io/MusicBot/)
   
 ## Notes
   [ToDo](https://hackpad.com/ToDO-4zUPvo84Cr0) List  
