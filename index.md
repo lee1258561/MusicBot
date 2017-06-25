@@ -1,31 +1,42 @@
 # MusicBot: A Smart Music Assistant
 *Demo Link: http://140.112.90.203:8888*  
+
 ## Overview
 ### Flow Chart
 ![Flow](http://i.imgur.com/qa9F7Xk.png)
 
 ### Features
-* Play songs: Search songs with artist or track name
-* Recommendation: Given the artist / track name or genre, recommending songs
-* Information: Given the artist or track name, providing information
+* Play songs: Search songs with artist or track name.
+* Recommendation: Given the artist / track name or genre, recommending similar songs.
+* Information: Given the artist name, providing the artis's genre and popular songs. Given the track name, providing its artist and album.
 * Playlist: 
     * Create a playlist named by user
     * Add songs to the specific playlist
     * Play the specific playlist
+    * Show the songs in specific playlist
+    * Show the playlists owned by current user
 * Play Public Playlist: Play some public playlist like "Taiwan Top 50 Music" or "Music for study" provided by Spotify Charts
 
 ## Ontology
+### Slots
+* track name
+* artist name
+* genre
+* playlist name
+
 ### Spotify API
 Supporting features like searching for a song, recommending songs by related information, listing popular songs, and accessing user’s playlist. Providing access to over 30 million songs, including almost all the Taiwanese pop music which our target audience want to listen to.
 ![Database Sheets](http://i.imgur.com/MXiJvpA.png)
 
 ## Dialogue Management
 ### Dialogue State Tracking
-* Dialogue state: determined by the action and distribution state of last time step, the current user response, and the confirm state
+* Dialogue state: determined by the action of last time step, the slot/intent distribution provided by NLU and rule-based LU, the current user response, and the confirm state.
 
 ### Dialogue Policy
-* Action: confirm, question, response, and info
-* Policy: setting upper and lower threshold deciding whether to confirm / asking questions if needing information / Response and info represent the end of a conversation.
+* Action: confirm, question
+* API Action: Play_song, Recommend, Info,  Add_playlist, Show_playlist, Create_playlist, Show_song_in_playlist,
+* Policy: setting threshold deciding whether to confirm / asking questions if needing information .API actions represent the end of a conversation.
+* Before asking user specific slot or writing slot to confirmed state, we will check whether it's a valid slot with spotify API.
 
 ### User Simulator
 * Simulator Goal: Complete the user goal which is random inited at the beginning
@@ -60,7 +71,7 @@ Supporting features like searching for a song, recommending songs by related inf
 ## Natural Language Generation
 ### Model Architecture
 * Seq2seq model
-* Input: mapping semantic frames into a one hot sequence 
+* Input: mapping semantic frames into an one hot sequence 
 * Output: sentence template we want to generate
 * The model first encode the one hot sequence of the frames, then decoder decode the encoding and output the template of sentence.
 
