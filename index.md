@@ -32,11 +32,15 @@ Supporting features like searching for a song, recommending songs by related inf
 * Simulator Response: Response the agent’s actions such as requirement or confirmation based on templates. 
 * Error Handling: User simulator would check if the agent’s action is valid or not. For the agent asking some invalid slots or confirming for wrong slots, it would give a negative response.
 
-### Success Rate: 96% (rule-based)  / 20% (RL-based)
+### Success Rate:
+#### Rule-based: 96% 
+#### RL-based: 20%
+![](http://i.imgur.com/M1qPvmq.png)
 
 ## Language Understanding
 ### Model Architecture
 * Attention-based sequence-to-sequence model (Bidirectional RNN), which can Jointly learn intent detection and slot filling
+![](http://i.imgur.com/iriaZl0.png)
 
 ### Data Collection
 * Several templates for each intents
@@ -69,3 +73,4 @@ Training: 155 templates  /  Testing: 20 templates
 
 ### Performance
 Training: 0.88  /  Testing: 0.34 (BLEU score)
+![model](http://i.imgur.com/lByB2ed.png)
