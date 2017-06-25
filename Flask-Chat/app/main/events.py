@@ -74,7 +74,7 @@ def text(message):
             emit('message',{'u_name':'Music Bot', 'toPlay':1, 'url':DM.dialogue_end_track_url[2]})
 
         print('\nCongratulation!!! You have ended one dialogue successfully\n')
-        DM.state_init()
+        DM.state_init(1) # soft init
     
     
 
